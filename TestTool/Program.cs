@@ -13,7 +13,7 @@ namespace TestTool
   {
     static void Main(string[] args)
     {
-      //BufferTest();
+      BufferTest();
 
       //static int ReadEmbedded(byte[] buf, int ofs, out byte[] val)
       //{
@@ -117,18 +117,20 @@ namespace TestTool
       //  }
       //}
 
-      using (var test = new FastPbfReader("../../../../planet-latest.osm.pbf"))
-      {
-        long pos = 0;
-        var buf = test.buffer;
+      //string path = "planet-latest.osm.pbf";
+      //for (int i = 0; i < 32 && !File.Exists(path); i++) path = "../" + path;
+      //using (var test = new FastPbfReader(path))
+      //{
+      //  long pos = 0;
+      //  var buf = test.buffer;
 
-        for (int i = 0; i < 1000; i++)
-        {
-          int ofs = test.PrepareBuffer(pos, 1024);
-          OsmBlob header;
-          pos += OsmBlob.DecodeQuick(buf, ofs, out header);
-        }
-      }
+      //  for (int i = 0; i < 1000; i++)
+      //  {
+      //    int ofs = test.PrepareBuffer(pos, 1024);
+      //    OsmBlob header;
+      //    pos += OsmBlob.DecodeQuick(buf, ofs, out header);
+      //  }
+      //}
     }
   }
 }
