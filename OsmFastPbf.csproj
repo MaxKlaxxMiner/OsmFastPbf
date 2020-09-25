@@ -42,6 +42,20 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="zlibTuned\Crc32Helper.cs" />
+    <Compile Include="zlibTuned\Deflater.cs" />
+    <Compile Include="zlibTuned\DeflaterConstants.cs" />
+    <Compile Include="zlibTuned\DeflaterEngine.cs" />
+    <Compile Include="zlibTuned\DeflaterHuffman.cs" />
+    <Compile Include="zlibTuned\DeflaterXOutputStream.cs" />
+    <Compile Include="zlibTuned\FastInflaterStream.cs" />
+    <Compile Include="zlibTuned\FastInflater\Inflater.cs" />
+    <Compile Include="zlibTuned\FastInflater\InflaterDynHeader.cs" />
+    <Compile Include="zlibTuned\FastInflater\InflaterHuffmanTree.cs" />
+    <Compile Include="zlibTuned\FastInflater\OutputWindow.cs" />
+    <Compile Include="zlibTuned\FastInflater\StreamManipulator.cs" />
+    <Compile Include="zlibTuned\GZipXStream.cs" />
+    <Compile Include="zlibTuned\PendingBuffer.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
