@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using OsmFastPbf;
+using OsmFastPbf.Helper;
 
 namespace TestTool
 {
@@ -13,7 +14,7 @@ namespace TestTool
   {
     static void Main(string[] args)
     {
-      BufferTest();
+      //BufferTest();
 
       //static int ReadEmbedded(byte[] buf, int ofs, out byte[] val)
       //{
@@ -117,20 +118,40 @@ namespace TestTool
       //  }
       //}
 
-      //string path = "planet-latest.osm.pbf";
-      //for (int i = 0; i < 32 && !File.Exists(path); i++) path = "../" + path;
-      //using (var test = new FastPbfReader(path))
-      //{
-      //  long pos = 0;
-      //  var buf = test.buffer;
+      string path = "planet-latest.osm.pbf";
+      for (int i = 0; i < 32 && !File.Exists(path); i++) path = "../" + path;
+      if (!File.Exists(path)) throw new FileNotFoundException(path.TrimStart('.', '/'));
+      using (var test = new FastPbfReader(path))
+      {
+        test.RandomBuffering = true;
 
-      //  for (int i = 0; i < 1000; i++)
-      //  {
-      //    int ofs = test.PrepareBuffer(pos, 1024);
-      //    OsmBlob header;
-      //    pos += OsmBlob.DecodeQuick(buf, ofs, out header);
-      //  }
-      //}
+        long pos = 0;
+        var buf = test.buffer;
+        int tim = 0;
+
+        var blocks = new List<OsmBlob>();
+        for (; ; )
+        {
+          if (tim != Environment.TickCount)
+          {
+            tim = Environment.TickCount;
+            Console.WriteLine("{0:N0} / {1:N0}", pos, test.pbfSize);
+          }
+          int ofs = test.PrepareBuffer(pos, 32);
+          OsmBlob blob;
+          OsmBlob.DecodeQuick(buf, ofs, out blob);
+          blob.pbfOfs = pos;
+          pos += blob.blobLen;
+          blocks.Add(blob);
+          if (pos >= test.pbfSize) break;
+        }
+
+        Console.WriteLine();
+        Console.WriteLine("            Blocks: {0,15:N0}", blocks.Count);
+        Console.WriteLine("    PBF-Compressed: {0,15:N0} Bytes", blocks.Sum(blob => (long)blob.blobLen));
+        Console.WriteLine("  PBF-Uncompressed: {0,15:N0} Bytes", blocks.Sum(blob => (long)(blob.blobLen - blob.dataZipLen + blob.dataLen)));
+        Console.WriteLine();
+      }
     }
   }
 }
