@@ -9,117 +9,6 @@ namespace TestTool
 {
   partial class Program
   {
-    static int DecodeHeaderBlock(byte[] buf, int ofs)
-    {
-      /*****
-       * message HeaderBlock
-       * {
-       *   optional HeaderBBox bbox = 1;
-       *   
-       *   // Additional tags to aid in parsing this dataset
-       *   repeated string required_features = 4;
-       *   repeated string optional_features = 5;
-       *   
-       *   optional string writingprogram = 16;
-       *   
-       *   optional string source = 17; // From the bbox field.
-       *   
-       *   // Tags that allow continuing an Osmosis replication
-       *   // replication timestamp, expressed in seconds since the epoch,
-       *   // otherwise the same value as in the "timestamp=..." field
-       *   // in the state.txt file used by Osmosis
-       *   optional int64 osmosis_replication_timestamp = 32;
-       *   
-       *   // replication sequence number (sequenceNumber in state.txt)
-       *   optional int64 osmosis_replication_sequence_number = 33;
-       *   
-       *   // replication base URL (from Osmosis' configuration.txt file)
-       *   optional string osmosis_replication_base_url = 34;
-       * }
-       *****/
-
-      int len = 0;
-      ulong tmp;
-
-      // --- optional HeaderBBox bbox = 1; ---
-      if (buf[ofs + len] == (1 << 3 | 2))
-      {
-        len++;
-        HeaderBBox box;
-        len += HeaderBBox.Decode(buf, ofs + len, out box);
-      }
-
-      // --- repeated string required_features = 4; ---
-      while (buf[ofs + len] == (4 << 3 | 2))
-      {
-        len++;
-        string feature;
-        len += ProtoBuf.ReadString(buf, ofs + len, out feature);
-        switch (feature)
-        {
-          case "OsmSchema-V0.6": break;
-          case "DenseNodes": break;
-          default: throw new PbfParseException("feature not supported: \"" + feature + "\"");
-        }
-      }
-
-      // --- repeated string optional_features = 5; ---
-      while (buf[ofs + len] == (5 << 3 | 2))
-      {
-        len++;
-        string feature;
-        len += ProtoBuf.ReadString(buf, ofs + len, out feature);
-        switch (feature)
-        {
-          case "Has_Metadata": break;
-          case "Sort.Type_then_ID": break;
-          default: throw new PbfParseException("feature not supported: \"" + feature + "\"");
-        }
-      }
-
-      // --- optional string writingprogram = 16; ---
-      if (ProtoBuf.PeekVarInt(buf, ofs + len) == (16 << 3 | 2))
-      {
-        len += 2;
-        string program;
-        len += ProtoBuf.ReadString(buf, ofs + len, out program);
-      }
-
-      // --- optional string source = 17; ---
-      if (ProtoBuf.PeekVarInt(buf, ofs + len) == (17 << 3 | 2))
-      {
-        len += 2;
-        string source;
-        len += ProtoBuf.ReadString(buf, ofs + len, out source);
-      }
-
-      // --- optional int64 osmosis_replication_timestamp = 32; ---
-      if (ProtoBuf.PeekVarInt(buf, ofs + len) == (32 << 3 | 0))
-      {
-        len += 2;
-        len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
-        long timestamp = (long)tmp;
-      }
-
-      // --- optional int64 osmosis_replication_sequence_number = 33; ---
-      if (ProtoBuf.PeekVarInt(buf, ofs + len) == (33 << 3 | 0))
-      {
-        len += 2;
-        len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
-        long replication = (long)tmp;
-      }
-
-      // --- optional string osmosis_replication_base_url = 34; ---
-      if (ProtoBuf.PeekVarInt(buf, ofs + len) == (34 << 3 | 2))
-      {
-        len += 2;
-        string baseUrl;
-        len += ProtoBuf.ReadString(buf, ofs + len, out baseUrl);
-      }
-
-      return len;
-    }
-
     static int DecodeStringTable(byte[] buf, int ofs)
     {
       int len = 0;
@@ -388,7 +277,8 @@ namespace TestTool
           int len;
           if (blob.IsHeader)
           {
-            len = DecodeHeaderBlock(outputBuf, ofs);
+            HeaderBlock headerBlock;
+            len = HeaderBlock.Decode(outputBuf, ofs, out headerBlock);
           }
           else
           {

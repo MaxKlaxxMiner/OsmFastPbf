@@ -29,7 +29,7 @@ namespace OsmFastPbf.Helper
     /// </summary>
     /// <param name="buf">Buffer, worraus die Werte gelesen werden sollen</param>
     /// <param name="ofs">Startposition innerhalb des Buffers</param>
-    /// <param name="box">BBox-Struktur mit dan ausgelesenen Werten</param>
+    /// <param name="box">BBox-Struktur mit den ausgelesenen Werten</param>
     /// <returns>Anzahl der gelesenen Bytes aus dem Buffer</returns>
     public static int Decode(byte[] buf, int ofs, out HeaderBBox box)
     {

@@ -43,6 +43,7 @@
   <ItemGroup>
     <Compile Include="FastPbfReader\FastPbfReader.cs" />
     <Compile Include="FastPbfReader\Helper\HeaderBBox.cs" />
+    <Compile Include="FastPbfReader\Helper\HeaderBlock.cs" />
     <Compile Include="FastPbfReader\PbfParseException.cs" />
     <Compile Include="FastPbfReader\Helper\OsmBlob.cs" />
     <Compile Include="FastPbfReader\Helper\ProtoBuf.cs" />
