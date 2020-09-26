@@ -47,6 +47,19 @@ namespace OsmFastPbf.Helper
     }
 
     /// <summary>
+    /// liest einen gepackten unsignerten Integer-Wert ein und gibt diesen zurück
+    /// </summary>
+    /// <param name="buf">Buffer, woraus der Wert gelesen werden soll</param>
+    /// <param name="ofs">Startposition innerhalb des Buffers</param>
+    /// <returns>fertig gelesener Wert</returns>
+    public static ulong PeekVarInt(byte[] buf, int ofs)
+    {
+      ulong val;
+      ReadVarInt(buf, ofs, out val);
+      return val;
+    }
+
+    /// <summary>
     /// wandelt eine ZigZag-kodierte Zahl um (uint -> int)
     /// </summary>
     /// <param name="val">Wert, welcher umgewandelt werden soll</param>

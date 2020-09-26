@@ -1,57 +1,14 @@
-﻿// ReSharper disable RedundantUsingDirective
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using OsmFastPbf;
 using OsmFastPbf.Helper;
-using OsmFastPbf.zlibTuned;
-// ReSharper disable CollectionNeverQueried.Local
 
 namespace TestTool
 {
   partial class Program
   {
-    static int DecodeHeaderBBox(byte[] buf, int ofs)
-    {
-      /*****
-       * message HeaderBBox
-       * {
-       *   required sint64 left = 1;
-       *   required sint64 right = 2;
-       *   required sint64 top = 3;
-       *   required sint64 bottom = 4;
-       * }
-       *****/
-
-      int len = 0;
-      ulong tmp;
-
-      // --- required sint64 left = 1; ---
-      if (buf[ofs + len++] != (1 << 3 | 0)) throw new PbfParseException();
-      len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
-      long left = ProtoBuf.SignedInt64(tmp);
-
-      // --- required sint64 right = 2; ---
-      if (buf[ofs + len++] != (2 << 3 | 0)) throw new PbfParseException();
-      len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
-      long right = ProtoBuf.SignedInt64(tmp);
-
-      // --- required sint64 top = 3; ---
-      if (buf[ofs + len++] != (3 << 3 | 0)) throw new PbfParseException();
-      len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
-      long top = ProtoBuf.SignedInt64(tmp);
-
-      // --- required sint64 bottom = 4; ---
-      if (buf[ofs + len++] != (4 << 3 | 0)) throw new PbfParseException();
-      len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
-      long bottom = ProtoBuf.SignedInt64(tmp);
-
-      return len;
-    }
-
     static int DecodeHeaderBlock(byte[] buf, int ofs)
     {
       /*****
@@ -88,19 +45,78 @@ namespace TestTool
       if (buf[ofs + len] == (1 << 3 | 2))
       {
         len++;
-        len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
-        int endLen = len+(int)tmp;
-        len += DecodeHeaderBBox(buf, ofs + len);
-        if (len != endLen) throw new PbfParseException();
+        HeaderBBox box;
+        len += HeaderBBox.Decode(buf, ofs + len, out box);
       }
 
-      //todo: repeated string required_features = 4;
-      //todo: repeated string optional_features = 5;
-      //todo: optional string writingprogram = 16;
-      //todo: optional string source = 17;
-      //todo: optional int64 osmosis_replication_timestamp = 32;
-      //todo: optional int64 osmosis_replication_sequence_number = 33;
-      //todo: optional string osmosis_replication_base_url = 34;
+      // --- repeated string required_features = 4; ---
+      while (buf[ofs + len] == (4 << 3 | 2))
+      {
+        len++;
+        string feature;
+        len += ProtoBuf.ReadString(buf, ofs + len, out feature);
+        switch (feature)
+        {
+          case "OsmSchema-V0.6": break;
+          case "DenseNodes": break;
+          default: throw new PbfParseException("feature not supported: \"" + feature + "\"");
+        }
+      }
+
+      // --- repeated string optional_features = 5; ---
+      while (buf[ofs + len] == (5 << 3 | 2))
+      {
+        len++;
+        string feature;
+        len += ProtoBuf.ReadString(buf, ofs + len, out feature);
+        switch (feature)
+        {
+          case "Has_Metadata": break;
+          case "Sort.Type_then_ID": break;
+          default: throw new PbfParseException("feature not supported: \"" + feature + "\"");
+        }
+      }
+
+      // --- optional string writingprogram = 16; ---
+      if (ProtoBuf.PeekVarInt(buf, ofs + len) == (16 << 3 | 2))
+      {
+        len += 2;
+        string program;
+        len += ProtoBuf.ReadString(buf, ofs + len, out program);
+      }
+
+      // --- optional string source = 17; ---
+      if (ProtoBuf.PeekVarInt(buf, ofs + len) == (17 << 3 | 2))
+      {
+        len += 2;
+        string source;
+        len += ProtoBuf.ReadString(buf, ofs + len, out source);
+      }
+
+      // --- optional int64 osmosis_replication_timestamp = 32; ---
+      if (ProtoBuf.PeekVarInt(buf, ofs + len) == (32 << 3 | 0))
+      {
+        len += 2;
+        len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
+        long timestamp = (long)tmp;
+      }
+
+      // --- optional int64 osmosis_replication_sequence_number = 33; ---
+      if (ProtoBuf.PeekVarInt(buf, ofs + len) == (33 << 3 | 0))
+      {
+        len += 2;
+        len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
+        long replication = (long)tmp;
+      }
+
+      // --- optional string osmosis_replication_base_url = 34; ---
+      if (ProtoBuf.PeekVarInt(buf, ofs + len) == (34 << 3 | 2))
+      {
+        len += 2;
+        string baseUrl;
+        len += ProtoBuf.ReadString(buf, ofs + len, out baseUrl);
+      }
+
       return len;
     }
 
