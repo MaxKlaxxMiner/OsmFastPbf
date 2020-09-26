@@ -1,7 +1,5 @@
 ﻿using System;
 using System.IO;
-using System.Net;
-
 // ReSharper disable MemberCanBePrivate.Global
 // ReSharper disable UnusedMember.Global
 // ReSharper disable ClassCanBeSealed.Global
@@ -118,6 +116,18 @@ namespace OsmFastPbf
         UpdateBuffer(pbfPos, minBytes);
       }
 
+      return (int)(uint)((ulong)pbfPos - (ulong)bufferStreamPos);
+    }
+
+    /// <summary>
+    /// prüft, ob ein gewünschter Buffer bereit liegt, Rückgabe: Startposition innerhalb des Buffers oder -1 wenn nicht verfügbar
+    /// </summary>
+    /// <param name="pbfPos">gewünschte Leseposition innerhalb der PBF-Datei</param>
+    /// <param name="minBytes">minimale Anzahl der vorausgeladenen Bytes</param>
+    /// <returns>Startposition innerhalb des Buffers oder -1 wenn nicht verfügbar</returns>
+    public int CheckFastBuffer(long pbfPos, int minBytes)
+    {
+      if (pbfPos < bufferStreamPos || pbfPos + minBytes > bufferStreamPos + buffer.Length) return -1;
       return (int)(uint)((ulong)pbfPos - (ulong)bufferStreamPos);
     }
 

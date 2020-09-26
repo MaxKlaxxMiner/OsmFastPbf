@@ -1,15 +1,30 @@
 ﻿using System.Text;
+using OsmFastPbf.zlibTuned.FastInflater;
 
 namespace OsmFastPbf.Helper
 {
   public static class ProtoBuf
   {
+    /// <summary>
+    /// liest einen Int32-Wert mit fester Größe ein (4 Bytes)
+    /// </summary>
+    /// <param name="buf">Buffer, woraus der Wert gelesen werden soll</param>
+    /// <param name="ofs">Startposition innerhalb des Buffers</param>
+    /// <param name="val">Wert, welcher ausgelesen wurde</param>
+    /// <returns>Anzahl der gelesenen Bytes</returns>
     public static int ReadInt32Fix(byte[] buf, int ofs, out int val)
     {
       val = (int)((uint)buf[ofs] << 24 | (uint)buf[ofs + 1] << 16 | (uint)buf[ofs + 2] << 8 | buf[ofs + 3]);
       return sizeof(int);
     }
 
+    /// <summary>
+    /// liest einen gepackten UInt32-Wert ein
+    /// </summary>
+    /// <param name="buf">Buffer, woraus der Wert gelesen werden soll</param>
+    /// <param name="ofs">Startposition innerhalb des Buffers</param>
+    /// <param name="val">Wert, welcher ausgelesen wurde</param>
+    /// <returns>Anzahl der gelesenen Bytes</returns>
     public static int ReadUInt32(byte[] buf, int ofs, out uint val)
     {
       int len = 0;
@@ -29,6 +44,13 @@ namespace OsmFastPbf.Helper
       return len;
     }
 
+    /// <summary>
+    /// liest einen gepackten Int64-Wert ein
+    /// </summary>
+    /// <param name="buf">Buffer, woraus der Wert gelesen werden soll</param>
+    /// <param name="ofs">Startposition innerhalb des Buffers</param>
+    /// <param name="val">Wert, welcher ausgelesen wurde</param>
+    /// <returns>Anzahl der gelesenen Bytes</returns>
     public static int ReadInt64(byte[] buf, int ofs, out long val)
     {
       int len = 0;
@@ -48,6 +70,13 @@ namespace OsmFastPbf.Helper
       return len;
     }
 
+    /// <summary>
+    /// liest die Länge eines Embedded-Blocks ein
+    /// </summary>
+    /// <param name="buf">Buffer, woraus der Wert gelesen werden soll</param>
+    /// <param name="ofs">Startposition innerhalb des Buffers</param>
+    /// <param name="val">Wert, welcher ausgelesen wurde</param>
+    /// <returns>Anzahl der gelesenen Bytes</returns>
     public static int ReadEmbeddedLength(byte[] buf, int ofs, out long val)
     {
       int len = 0;
@@ -67,6 +96,13 @@ namespace OsmFastPbf.Helper
       return len;
     }
 
+    /// <summary>
+    /// liest eine Zeichenfolge ein
+    /// </summary>
+    /// <param name="buf">Buffer, woraus der Wert gelesen werden soll</param>
+    /// <param name="ofs">Startposition innerhalb des Buffers</param>
+    /// <param name="val">Wert, welcher ausgelesen wurde</param>
+    /// <returns>Anzahl der gelesenen Bytes</returns>
     public static int ReadString(byte[] buf, int ofs, out string val)
     {
       int len = 0;
@@ -86,6 +122,23 @@ namespace OsmFastPbf.Helper
       val = Encoding.UTF8.GetString(buf, ofs + len, size);
       len += size;
       return len;
+    }
+
+    /// <summary>
+    /// entpackt einen Buffer-Block mit dem Inflater
+    /// </summary>
+    /// <param name="buf">Buffer, welcher die komprimierten Daten enthält</param>
+    /// <param name="bufOfs">Startposition innerhalb des Buffers</param>
+    /// <param name="bufLen">Anzahl der zu lesenden Bytes im Buffer</param>
+    /// <param name="output">Ausgabe-Buffer für die entpackten Daten</param>
+    /// <param name="outputOfs">Startposition innerhalb des Ausgabe-Buffers</param>
+    /// <returns>Länge der entpackten Daten</returns>
+    public static int FastInflate(byte[] buf, int bufOfs, int bufLen, byte[] output, int outputOfs)
+    {
+      var inf = new Inflater();
+      inf.SetInput(buf, bufOfs + 2, bufLen - 2); // Buffer setzen und Header überspringen (2 Bytes)
+      int count = inf.Inflate(output, outputOfs, output.Length - outputOfs);
+      return count;
     }
   }
 }
