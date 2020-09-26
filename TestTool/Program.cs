@@ -8,11 +8,121 @@ using System.Threading.Tasks;
 using OsmFastPbf;
 using OsmFastPbf.Helper;
 using OsmFastPbf.zlibTuned;
+// ReSharper disable CollectionNeverQueried.Local
 
 namespace TestTool
 {
   partial class Program
   {
+    static int DecodeStringTable(byte[] buf, int ofs)
+    {
+      int len = 0;
+      byte t = buf[ofs + len++];
+      if (t != (2 | 1 << 3)) throw new PbfParseException(); // Length-delimited (2), string (1)
+      ulong dataLen;
+      len += ProtoBuf.ReadVarInt(buf, ofs + len, out dataLen);
+      int endLen = len + (int)dataLen;
+      var stringTable = new List<string>();
+      for (; len < endLen; )
+      {
+        string tmp;
+        len += ProtoBuf.ReadString(buf, ofs + len, out tmp);
+        stringTable.Add(tmp);
+      }
+      if (len != endLen) throw new PbfParseException();
+      return len;
+    }
+
+    static int DecodePrimitiveGroup(byte[] buf, int ofs)
+    {
+      /*****
+       * message PrimitiveGroup
+       * {
+       *   repeated Node nodes = 1;
+       *   optional DenseNodes dense = 2;
+       *   repeated Way ways = 3;
+       *   repeated Relation relations = 4;
+       *   repeated ChangeSet changesets = 5;
+       * }
+       *****/
+
+      int len = 0;
+
+
+      //if (t != (2 | 2 << 3)) throw new PbfParseException(); // Length-delimited (2), bytes (2)
+      //ofs += ProtoBuf.ReadVarInt(buf, ofs, out dataLen);
+      //int endOfsPrim = ofs + (int)dataLen;
+      //var nodeIds = new List<ulong>();
+      //for (; ofs < endOfsPrim; )
+      //{
+      //  t = buf[ofs++];
+      //  if (t != (2 | 1 << 3)) throw new PbfParseException(); // Length-delimited (2), string (1)
+      //  ofs += ProtoBuf.ReadVarInt(buf, ofs, out dataLen);
+      //  int endOfsDense = ofs + (int)dataLen;
+      //  for (; ofs < endOfsDense; )
+      //  {
+      //    ulong val;
+      //    ofs += ProtoBuf.ReadVarInt(buf, ofs, out val);
+      //    nodeIds.Add(val);
+      //  }
+      //  t = buf[ofs++];
+      //  if (t != (2 | 5 << 3)) throw new PbfParseException(); // Length-delimited (2), string (1)
+      //  ulong tmp;
+      //  ofs += ProtoBuf.ReadVarInt(buf, ofs, out tmp);
+
+      //}
+
+      return len;
+    }
+
+    static int DecodePrimitiveBlock(byte[] buf, int ofs)
+    {
+      /*****
+       * message PrimitiveBlock
+       * {
+       *   required StringTable stringtable = 1;
+       *   repeated PrimitiveGroup primitivegroup = 2;
+       *   
+       *   // Einheit der Auflösung: Nanograd, zur Speicherung Koordinaten in diesem Block
+       *   optional int32 granularity = 17 [default=100]; 
+       *   
+       *   // Offset-Wert zwischen der  Koordinaten-Ausgabe den Koordinaten und dem Auflösungsraster - in Nanograd.
+       *   optional int64 lat_offset = 19 [default=0];
+       *   optional int64 lon_offset = 20 [default=0];
+       *   
+       *   // Genauigkeit des Zeitpunkts, üblicherweise seit 1970, in Millisekunden.
+       *   optional int32 date_granularity = 18 [default=1000]; 
+       *   
+       *   // Vorgeschlagene Erweiterung:
+       *   //optional BBox bbox = XX;
+       * }    
+       *****/
+
+      int len = 0;
+
+      len += DecodeStringTable(buf, ofs + len);
+
+      byte t = buf[ofs + len++];
+      if (t != (2 | 2 << 3)) throw new PbfParseException(); // Length-delimited (2), bytes (2)
+      ulong dataLen;
+      len += ProtoBuf.ReadVarInt(buf, ofs + len, out dataLen);
+      int endLen = len + (int)dataLen;
+      for (; len < endLen; len++)
+      {
+        len += DecodePrimitiveGroup(buf, ofs + len);
+      }
+
+      //todo: granularity
+
+      //todo: lat_offset
+
+      //todo: lon_offset
+
+      //todo: data_granularity
+
+      return len;
+    }
+
     static void Main(string[] args)
     {
       //BufferTest();
@@ -158,19 +268,15 @@ namespace TestTool
         #endregion
 
         test.RandomBuffering = false;
+        foreach (var blob in blocks)
         {
-          var blob = blocks[0];
+          if (blob.IsHeader) continue; // Header überspringen
           int ofs = test.PrepareBuffer(blob.pbfOfs + blob.dataZipOfs, blob.dataZipLen);
-          var outputBuf1 = new byte[16 * 1048576];
-          int bytes1;
-          var outputBuf2 = new byte[16 * 1048576];
-          int bytes2;
-          using (var mem = new MemoryStream(buf, ofs + 2, blob.dataZipLen - 2))
-          using (var inf = new FastInflaterStream(mem))
-          {
-            bytes1 = inf.Read(outputBuf1, 0, outputBuf1.Length);
-          }
-          bytes2 = ProtoBuf.FastInflate(buf, ofs, blob.dataZipLen, outputBuf2, 0);
+          var outputBuf = new byte[16 * 1048576];
+          int bytes = ProtoBuf.FastInflate(buf, ofs, blob.dataZipLen, outputBuf, 0);
+          if (bytes != blob.dataLen) throw new PbfParseException();
+          int len = DecodePrimitiveBlock(outputBuf, 0);
+          if (len != bytes) throw new PbfParseException();
         }
       }
     }

@@ -1,5 +1,7 @@
-﻿using System.Text;
+﻿using System.Runtime.CompilerServices;
+using System.Text;
 using OsmFastPbf.zlibTuned.FastInflater;
+// ReSharper disable MemberCanBePrivate.Global
 
 namespace OsmFastPbf.Helper
 {
@@ -19,17 +21,16 @@ namespace OsmFastPbf.Helper
     }
 
     /// <summary>
-    /// liest einen gepackten UInt32-Wert ein
+    /// liest einen gepackten unsignerten Integer-Wert ein
     /// </summary>
     /// <param name="buf">Buffer, woraus der Wert gelesen werden soll</param>
     /// <param name="ofs">Startposition innerhalb des Buffers</param>
     /// <param name="val">Wert, welcher ausgelesen wurde</param>
     /// <returns>Anzahl der gelesenen Bytes</returns>
-    public static int ReadUInt32(byte[] buf, int ofs, out uint val)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int ReadVarInt(byte[] buf, int ofs, out ulong val)
     {
       int len = 0;
-      byte t = buf[ofs + len++];
-      if (t != (0 | 3 << 3)) throw new PbfParseException(); // Varint (0), uint32 (3)
       val = buf[ofs + len++];
       if (val > 127)
       {
@@ -45,6 +46,24 @@ namespace OsmFastPbf.Helper
     }
 
     /// <summary>
+    /// liest einen gepackten UInt32-Wert ein
+    /// </summary>
+    /// <param name="buf">Buffer, woraus der Wert gelesen werden soll</param>
+    /// <param name="ofs">Startposition innerhalb des Buffers</param>
+    /// <param name="val">Wert, welcher ausgelesen wurde</param>
+    /// <returns>Anzahl der gelesenen Bytes</returns>
+    public static int ReadUInt32(byte[] buf, int ofs, out uint val)
+    {
+      int len = 0;
+      byte t = buf[ofs + len++];
+      if (t != (0 | 3 << 3)) throw new PbfParseException(); // Varint (0), uint32 (3)
+      ulong r;
+      len += ReadVarInt(buf, ofs + len, out r);
+      val = (uint)r;
+      return len;
+    }
+
+    /// <summary>
     /// liest einen gepackten Int64-Wert ein
     /// </summary>
     /// <param name="buf">Buffer, woraus der Wert gelesen werden soll</param>
@@ -56,17 +75,9 @@ namespace OsmFastPbf.Helper
       int len = 0;
       byte t = buf[ofs + len++];
       if (t != (0 | 2 << 3)) throw new PbfParseException(); // Varint (0), int64 (2)
-      val = buf[ofs + len++];
-      if (val > 127)
-      {
-        val &= 127;
-        for (int bit = 7; ; bit += 7)
-        {
-          byte b = buf[ofs + len++];
-          val |= (long)(b & 127) << bit;
-          if (b <= 127) break;
-        }
-      }
+      ulong r;
+      len += ReadVarInt(buf, ofs + len, out r);
+      val = (long)r;
       return len;
     }
 
@@ -82,17 +93,9 @@ namespace OsmFastPbf.Helper
       int len = 0;
       byte t = buf[ofs + len++];
       if (t != (2 | 3 << 3)) throw new PbfParseException(); // Length-delimited (2), embedded message (3)
-      val = buf[ofs + len++];
-      if (val > 127)
-      {
-        val &= 127;
-        for (int bit = 7; ; bit += 7)
-        {
-          byte b = buf[ofs + len++];
-          val |= (long)(b & 127) << bit;
-          if (b <= 127) break;
-        }
-      }
+      ulong r;
+      len += ReadVarInt(buf, ofs + len, out r);
+      val = (long)r;
       return len;
     }
 
@@ -108,19 +111,10 @@ namespace OsmFastPbf.Helper
       int len = 0;
       byte t = buf[ofs + len++];
       if (t != (2 | 1 << 3)) throw new PbfParseException(); // Length-delimited (2), string (1)
-      int size = buf[ofs + len++];
-      if (size > 127)
-      {
-        size &= 127;
-        for (int bit = 7; ; bit += 7)
-        {
-          byte b = buf[ofs + len++];
-          size |= (b & 127) << bit;
-          if (b <= 127) break;
-        }
-      }
-      val = Encoding.UTF8.GetString(buf, ofs + len, size);
-      len += size;
+      ulong r;
+      len += ReadVarInt(buf, ofs + len, out r);
+      val = Encoding.UTF8.GetString(buf, ofs + len, (int)(uint)r);
+      len += (int)(uint)r;
       return len;
     }
 
@@ -137,8 +131,7 @@ namespace OsmFastPbf.Helper
     {
       var inf = new Inflater();
       inf.SetInput(buf, bufOfs + 2, bufLen - 2); // Buffer setzen und Header überspringen (2 Bytes)
-      int count = inf.Inflate(output, outputOfs, output.Length - outputOfs);
-      return count;
+      return inf.Inflate(output, outputOfs, output.Length - outputOfs);
     }
   }
 }
