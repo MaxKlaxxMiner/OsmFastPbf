@@ -14,6 +14,44 @@ namespace TestTool
 {
   partial class Program
   {
+    static int DecodeHeaderBBox(byte[] buf, int ofs)
+    {
+      /*****
+       * message HeaderBBox
+       * {
+       *   required sint64 left = 1;
+       *   required sint64 right = 2;
+       *   required sint64 top = 3;
+       *   required sint64 bottom = 4;
+       * }
+       *****/
+
+      int len = 0;
+      ulong tmp;
+
+      // --- required sint64 left = 1; ---
+      if (buf[ofs + len++] != (1 << 3 | 0)) throw new PbfParseException();
+      len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
+      long left = ProtoBuf.SignedInt64(tmp);
+
+      // --- required sint64 right = 2; ---
+      if (buf[ofs + len++] != (2 << 3 | 0)) throw new PbfParseException();
+      len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
+      long right = ProtoBuf.SignedInt64(tmp);
+
+      // --- required sint64 top = 3; ---
+      if (buf[ofs + len++] != (3 << 3 | 0)) throw new PbfParseException();
+      len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
+      long top = ProtoBuf.SignedInt64(tmp);
+
+      // --- required sint64 bottom = 4; ---
+      if (buf[ofs + len++] != (4 << 3 | 0)) throw new PbfParseException();
+      len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
+      long bottom = ProtoBuf.SignedInt64(tmp);
+
+      return len;
+    }
+
     static int DecodeHeaderBlock(byte[] buf, int ofs)
     {
       /*****
@@ -44,10 +82,16 @@ namespace TestTool
        *****/
 
       int len = 0;
+      ulong tmp;
+
       // --- optional HeaderBBox bbox = 1; ---
       if (buf[ofs + len] == (1 << 3 | 2))
       {
-
+        len++;
+        len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
+        int endLen = len+(int)tmp;
+        len += DecodeHeaderBBox(buf, ofs + len);
+        if (len != endLen) throw new PbfParseException();
       }
 
       //todo: repeated string required_features = 4;
@@ -63,19 +107,19 @@ namespace TestTool
     static int DecodeStringTable(byte[] buf, int ofs)
     {
       int len = 0;
-      byte t = buf[ofs + len++];
-      if (t != (2 | 1 << 3)) throw new PbfParseException(); // Length-delimited (2), string (1)
-      ulong dataLen;
-      len += ProtoBuf.ReadVarInt(buf, ofs + len, out dataLen);
-      int endLen = len + (int)dataLen;
-      var stringTable = new List<string>();
-      for (; len < endLen; )
-      {
-        string tmp;
-        len += ProtoBuf.ReadString(buf, ofs + len, out tmp);
-        stringTable.Add(tmp);
-      }
-      if (len != endLen) throw new PbfParseException();
+      //byte t = buf[ofs + len++];
+      //if (t != (2 | 1 << 3)) throw new PbfParseException(); // Length-delimited (2), string (1)
+      //ulong dataLen;
+      //len += ProtoBuf.ReadVarInt(buf, ofs + len, out dataLen);
+      //int endLen = len + (int)dataLen;
+      //var stringTable = new List<string>();
+      //for (; len < endLen; )
+      //{
+      //  string tmp;
+      //  len += ProtoBuf.ReadString(buf, ofs + len, out tmp);
+      //  stringTable.Add(tmp);
+      //}
+      //if (len != endLen) throw new PbfParseException();
       return len;
     }
 

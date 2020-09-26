@@ -2,6 +2,7 @@
 using System.Text;
 using OsmFastPbf.zlibTuned.FastInflater;
 // ReSharper disable MemberCanBePrivate.Global
+// ReSharper disable UnusedMember.Global
 
 namespace OsmFastPbf.Helper
 {
@@ -45,6 +46,25 @@ namespace OsmFastPbf.Helper
       return len;
     }
 
+    /// <summary>
+    /// wandelt eine ZigZag-kodierte Zahl um (uint -> int)
+    /// </summary>
+    /// <param name="val">Wert, welcher umgewandelt werden soll</param>
+    /// <returns>fertiges Ergebnis</returns>
+    public static int SignedInt32(uint val)
+    {
+      return (int)(val >> 1) ^ -(int)(val & 1);
+    }
+
+    /// <summary>
+    /// wandelt eine ZigZag-kodierte Zahl um (ulong -> long)
+    /// </summary>
+    /// <param name="val">Wert, welcher umgewandelt werden soll</param>
+    /// <returns>fertiges Ergebnis</returns>
+    public static long SignedInt64(ulong val)
+    {
+      return (long)(val >> 1) ^ -(long)(val & 1);
+    }
 
     /// <summary>
     /// liest eine Zeichenfolge ein
