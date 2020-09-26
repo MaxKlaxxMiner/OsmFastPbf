@@ -14,6 +14,52 @@ namespace TestTool
 {
   partial class Program
   {
+    static int DecodeHeaderBlock(byte[] buf, int ofs)
+    {
+      /*****
+       * message HeaderBlock
+       * {
+       *   optional HeaderBBox bbox = 1;
+       *   
+       *   // Additional tags to aid in parsing this dataset
+       *   repeated string required_features = 4;
+       *   repeated string optional_features = 5;
+       *   
+       *   optional string writingprogram = 16;
+       *   
+       *   optional string source = 17; // From the bbox field.
+       *   
+       *   // Tags that allow continuing an Osmosis replication
+       *   // replication timestamp, expressed in seconds since the epoch,
+       *   // otherwise the same value as in the "timestamp=..." field
+       *   // in the state.txt file used by Osmosis
+       *   optional int64 osmosis_replication_timestamp = 32;
+       *   
+       *   // replication sequence number (sequenceNumber in state.txt)
+       *   optional int64 osmosis_replication_sequence_number = 33;
+       *   
+       *   // replication base URL (from Osmosis' configuration.txt file)
+       *   optional string osmosis_replication_base_url = 34;
+       * }
+       *****/
+
+      int len = 0;
+      // --- optional HeaderBBox bbox = 1; ---
+      if (buf[ofs + len] == (1 << 3 | 2))
+      {
+
+      }
+
+      //todo: repeated string required_features = 4;
+      //todo: repeated string optional_features = 5;
+      //todo: optional string writingprogram = 16;
+      //todo: optional string source = 17;
+      //todo: optional int64 osmosis_replication_timestamp = 32;
+      //todo: optional int64 osmosis_replication_sequence_number = 33;
+      //todo: optional string osmosis_replication_base_url = 34;
+      return len;
+    }
+
     static int DecodeStringTable(byte[] buf, int ofs)
     {
       int len = 0;
@@ -48,29 +94,31 @@ namespace TestTool
 
       int len = 0;
 
+      // --- repeated Node nodes = 1; ---
+      if (buf[ofs + len] == (1 | 2 << 3))
+      {
+        throw new NotImplementedException();
+      }
 
-      //if (t != (2 | 2 << 3)) throw new PbfParseException(); // Length-delimited (2), bytes (2)
-      //ofs += ProtoBuf.ReadVarInt(buf, ofs, out dataLen);
-      //int endOfsPrim = ofs + (int)dataLen;
-      //var nodeIds = new List<ulong>();
-      //for (; ofs < endOfsPrim; )
-      //{
-      //  t = buf[ofs++];
-      //  if (t != (2 | 1 << 3)) throw new PbfParseException(); // Length-delimited (2), string (1)
-      //  ofs += ProtoBuf.ReadVarInt(buf, ofs, out dataLen);
-      //  int endOfsDense = ofs + (int)dataLen;
-      //  for (; ofs < endOfsDense; )
-      //  {
-      //    ulong val;
-      //    ofs += ProtoBuf.ReadVarInt(buf, ofs, out val);
-      //    nodeIds.Add(val);
-      //  }
-      //  t = buf[ofs++];
-      //  if (t != (2 | 5 << 3)) throw new PbfParseException(); // Length-delimited (2), string (1)
-      //  ulong tmp;
-      //  ofs += ProtoBuf.ReadVarInt(buf, ofs, out tmp);
+      // --- optional DenseNodes dense = 2; ---
+      if (buf[ofs + len] == (2 | 2 << 3))
+      {
+        byte t = buf[ofs + len++];
+        if (t != (2 | 2 << 3)) throw new PbfParseException(); // Length
+        ulong nodesLen;
+        len += ProtoBuf.ReadVarInt(buf, ofs + len, out nodesLen);
+        int endNodes = len + (int)nodesLen;
+        for (; len < endNodes; )
+        {
+          //len += DecodeNode(buf, ofs + len);
+        }
+      }
 
-      //}
+      //todo: repeated Way ways = 3;
+
+      //todo: repeated Relation relations = 4;
+
+      //todo: repeated ChangeSet changesets = 5;
 
       return len;
     }
@@ -84,14 +132,14 @@ namespace TestTool
        *   repeated PrimitiveGroup primitivegroup = 2;
        *   
        *   // Einheit der Auflösung: Nanograd, zur Speicherung Koordinaten in diesem Block
-       *   optional int32 granularity = 17 [default=100]; 
+       *   optional int32 granularity = 17 [default=100];
        *   
        *   // Offset-Wert zwischen der  Koordinaten-Ausgabe den Koordinaten und dem Auflösungsraster - in Nanograd.
        *   optional int64 lat_offset = 19 [default=0];
        *   optional int64 lon_offset = 20 [default=0];
        *   
        *   // Genauigkeit des Zeitpunkts, üblicherweise seit 1970, in Millisekunden.
-       *   optional int32 date_granularity = 18 [default=1000]; 
+       *   optional int32 date_granularity = 18 [default=1000];
        *   
        *   // Vorgeschlagene Erweiterung:
        *   //optional BBox bbox = XX;
@@ -100,25 +148,28 @@ namespace TestTool
 
       int len = 0;
 
+      // --- required StringTable stringtable = 1; ---
       len += DecodeStringTable(buf, ofs + len);
 
-      byte t = buf[ofs + len++];
-      if (t != (2 | 2 << 3)) throw new PbfParseException(); // Length-delimited (2), bytes (2)
-      ulong dataLen;
-      len += ProtoBuf.ReadVarInt(buf, ofs + len, out dataLen);
-      int endLen = len + (int)dataLen;
-      for (; len < endLen; len++)
+      // --- repeated PrimitiveGroup primitivegroup = 2; ---
+      if (buf[ofs + len] == (2 | 2 << 3))
       {
-        len += DecodePrimitiveGroup(buf, ofs + len);
+        ulong dataLen;
+        len += ProtoBuf.ReadVarInt(buf, ofs + ++len, out dataLen);
+        int endLen = len + (int)dataLen;
+        for (; len < endLen; len++)
+        {
+          len += DecodePrimitiveGroup(buf, ofs + len);
+        }
       }
 
-      //todo: granularity
+      //todo: optional int32 granularity = 17 [default=100];
 
-      //todo: lat_offset
+      //todo: optional int64 lat_offset = 19 [default=0];
 
-      //todo: lon_offset
+      //todo: optional int64 lon_offset = 20 [default=0];
 
-      //todo: data_granularity
+      //todo: optional int32 date_granularity = 18 [default=1000];
 
       return len;
     }
@@ -263,19 +314,26 @@ namespace TestTool
         Console.WriteLine();
         Console.WriteLine("            Blocks: {0,15:N0}", blocks.Count);
         Console.WriteLine("    PBF-Compressed: {0,15:N0} Bytes", blocks.Sum(blob => (long)blob.blobLen));
-        Console.WriteLine("  PBF-Uncompressed: {0,15:N0} Bytes", blocks.Sum(blob => (long)(blob.blobLen - blob.dataZipLen + blob.dataLen)));
+        Console.WriteLine("  PBF-Uncompressed: {0,15:N0} Bytes", blocks.Sum(blob => (long)(blob.blobLen - blob.zlibLen + blob.rawSize)));
         Console.WriteLine();
         #endregion
 
         test.RandomBuffering = false;
         foreach (var blob in blocks)
         {
-          if (blob.IsHeader) continue; // Header überspringen
-          int ofs = test.PrepareBuffer(blob.pbfOfs + blob.dataZipOfs, blob.dataZipLen);
+          int ofs = test.PrepareBuffer(blob.pbfOfs + blob.zlibOfs, blob.zlibLen);
           var outputBuf = new byte[16 * 1048576];
-          int bytes = ProtoBuf.FastInflate(buf, ofs, blob.dataZipLen, outputBuf, 0);
-          if (bytes != blob.dataLen) throw new PbfParseException();
-          int len = DecodePrimitiveBlock(outputBuf, 0);
+          int bytes = ProtoBuf.FastInflate(buf, ofs, blob.zlibLen, outputBuf, 0);
+          if (bytes != blob.rawSize) throw new PbfParseException();
+          int len;
+          if (blob.IsHeader)
+          {
+            len = DecodeHeaderBlock(outputBuf, ofs);
+          }
+          else
+          {
+            len = DecodePrimitiveBlock(outputBuf, ofs);
+          }
           if (len != bytes) throw new PbfParseException();
         }
       }
