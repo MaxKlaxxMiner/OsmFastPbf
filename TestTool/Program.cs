@@ -104,6 +104,31 @@ namespace TestTool
       return len;
     }
 
+    static int DecodePackedUInt32(byte[] buf, int ofs, out uint[] val)
+    {
+      int len = 0;
+      ulong dataLen;
+      len += ProtoBuf.ReadVarInt(buf, ofs + len, out dataLen);
+      int endLen = len + (int)dataLen;
+
+      var result = new uint[dataLen];
+      int resultLen = 0;
+
+      while (len < endLen)
+      {
+        ulong tmp;
+        len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
+        result[resultLen++] = (uint)tmp;
+      }
+
+      Array.Resize(ref result, resultLen);
+      val = result;
+
+      if (len != endLen) throw new PbfParseException();
+
+      return len;
+    }
+
     static void DecodeDelta(long[] values)
     {
       for (int i = 1; i < values.Length; i++) values[i] += values[i - 1];
@@ -270,6 +295,150 @@ namespace TestTool
       return len;
     }
 
+    static int DecodeInfo(byte[] buf, int ofs)
+    {
+      /*****
+       * message Info
+       * {
+       *   optional int32 version = 1 [default = -1];
+       *   optional int64 timestamp = 2;
+       *   optional int64 changeset = 3;
+       *   optional int32 uid = 4;
+       *   optional uint32 user_sid = 5; // String IDs
+       *   
+       *   // The visible flag is used to store history information. It indicates that
+       *   // the current object version has been created by a delete operation on the
+       *   // OSM API.
+       *   // When a writer sets this flag, it MUST add a required_features tag with
+       *   // value "HistoricalInformation" to the HeaderBlock.
+       *   // If this flag is not available for some object it MUST be assumed to be
+       *   // true if the file has the required_features tag "HistoricalInformation"
+       *   // set.
+       *   optional bool visible = 6;
+       * }
+       *****/
+
+      int len = 0;
+      ulong dataLen;
+      len += ProtoBuf.ReadVarInt(buf, ofs + len, out dataLen);
+      int endLen = len + (int)dataLen;
+      ulong tmp;
+
+      // --- optional int32 version = 1 [default = -1]; ---
+      if (buf[ofs + len] == (1 << 3 | 0))
+      {
+        len++;
+        len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
+        int version = (int)(uint)tmp;
+      }
+
+      // --- optional int64 timestamp = 2; ---
+      if (buf[ofs + len] == (2 << 3 | 0))
+      {
+        len++;
+        len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
+        long timestamp = (long)tmp;
+      }
+
+      // --- optional int64 changeset = 3; ---
+      if (buf[ofs + len] == (3 << 3 | 0))
+      {
+        len++;
+        len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
+        long changeset = (long)tmp;
+      }
+
+      // --- optional int32 uid = 4; ---
+      if (buf[ofs + len] == (4 << 3 | 0))
+      {
+        len++;
+        len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
+        int uid = (int)(uint)tmp;
+      }
+
+      // --- optional uint32 user_sid = 5; // String IDs ---
+      if (buf[ofs + len] == (5 << 3 | 0))
+      {
+        len++;
+        len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
+        uint userSid = (uint)tmp;
+      }
+
+      // --- optional bool visible = 6; ---
+      if (buf[ofs + len] == (6 << 3 | 0))
+      {
+        throw new NotSupportedException();
+      }
+
+      if (len != endLen) throw new PbfParseException();
+
+      return len;
+    }
+
+    static int DecodeWays(byte[] buf, int ofs)
+    {
+      /*****
+       * message Way
+       * {
+       *   required int64 id = 1;
+       *   // Parallel arrays.
+       *   repeated uint32 keys = 2 [packed = true];
+       *   repeated uint32 vals = 3 [packed = true];
+       *   
+       *   optional Info info = 4;
+       *   
+       *   repeated sint64 refs = 8 [packed = true];  // DELTA coded
+       * }
+       *****/
+
+      int len = 0;
+      ulong dataLen;
+      len += ProtoBuf.ReadVarInt(buf, ofs + len, out dataLen);
+      int endLen = len + (int)dataLen;
+
+      // --- required int64 id = 1; ---
+      if (buf[ofs + len++] != (1 << 3 | 0)) throw new PbfParseException();
+      ulong tmp;
+      len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
+      long id = (long)tmp;
+
+      // --- repeated uint32 keys = 2 [packed = true]; ---
+      if (buf[ofs + len] == (2 << 3 | 2))
+      {
+        len++;
+        uint[] keys;
+        len += DecodePackedUInt32(buf, ofs + len, out keys);
+      }
+
+      // --- repeated uint32 vals = 3 [packed = true]; ---
+      if (buf[ofs + len] == (3 << 3 | 2))
+      {
+        len++;
+        uint[] vals;
+        len += DecodePackedUInt32(buf, ofs + len, out vals);
+      }
+
+      // --- optional Info info = 4; ---
+      if (buf[ofs + len] == (4 << 3 | 2))
+      {
+        len++;
+        len += DecodeInfo(buf, ofs + len);
+      }
+
+      // --- repeated sint64 refs = 8 [packed = true]; // DELTA coded ---
+      if (buf[ofs + len] == (8 << 3 | 2))
+      {
+        len++;
+        long[] refs;
+        len += DecodePackedSInt64(buf, ofs + len, out refs);
+        DecodeDelta(refs);
+      }
+
+      if (len != endLen) throw new PbfParseException();
+
+      return len;
+    }
+
     static int DecodePrimitiveGroup(byte[] buf, int ofs)
     {
       /*****
@@ -301,7 +470,8 @@ namespace TestTool
       // --- repeated Way ways = 3; ---
       if (buf[ofs + len] == (3 << 3 | 2))
       {
-        throw new NotImplementedException();
+        len++;
+        len += DecodeWays(buf, ofs + len);
       }
 
       // --- repeated Relation relations = 4; ---
@@ -415,7 +585,7 @@ namespace TestTool
         #endregion
 
         test.RandomBuffering = false;
-        for (int blobIndex = 0; blobIndex < blocks.Count; blobIndex++)
+        for (int blobIndex = 10322; blobIndex < blocks.Count; blobIndex++)
         {
           var blob = blocks[blobIndex];
           int ofs = test.PrepareBuffer(blob.pbfOfs + blob.zlibOfs, blob.zlibLen);
