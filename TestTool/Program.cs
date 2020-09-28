@@ -104,6 +104,16 @@ namespace TestTool
       return len;
     }
 
+    static void DecodeDelta(long[] values)
+    {
+      for (int i = 1; i < values.Length; i++) values[i] += values[i - 1];
+    }
+
+    static void DecodeDelta(int[] values)
+    {
+      for (int i = 1; i < values.Length; i++) values[i] += values[i - 1];
+    }
+
     static int DecodeDenseInfo(byte[] buf, int ofs)
     {
       /*****
@@ -140,36 +150,40 @@ namespace TestTool
         len += DecodePackedInt32(buf, ofs + len, out version);
       }
 
-      // --- repeated sint64 timestamp = 2 [packed = true]; ---
+      // --- repeated sint64 timestamp = 2 [packed = true]; // DELTA coded ---
       if (buf[ofs + len] == (2 << 3 | 2))
       {
         len++;
         long[] timestamp;
         len += DecodePackedSInt64(buf, ofs + len, out timestamp);
+        DecodeDelta(timestamp);
       }
 
-      // --- repeated sint64 changeset = 3 [packed = true]; ---
+      // --- repeated sint64 changeset = 3 [packed = true]; // DELTA coded ---
       if (buf[ofs + len] == (3 << 3 | 2))
       {
         len++;
         long[] changeset;
         len += DecodePackedSInt64(buf, ofs + len, out changeset);
+        DecodeDelta(changeset);
       }
 
-      // --- repeated sint32 uid = 4 [packed = true]; ---
+      // --- repeated sint32 uid = 4 [packed = true]; // DELTA coded ---
       if (buf[ofs + len] == (4 << 3 | 2))
       {
         len++;
         int[] uid;
         len += DecodePackedSInt32(buf, ofs + len, out uid);
+        DecodeDelta(uid);
       }
 
-      // --- repeated sint32 user_sid = 5 [packed = true]; ---
+      // --- repeated sint32 user_sid = 5 [packed = true]; // String IDs for usernames. DELTA coded ---
       if (buf[ofs + len] == (5 << 3 | 2))
       {
         len++;
         int[] userSid;
         len += DecodePackedSInt32(buf, ofs + len, out userSid);
+        DecodeDelta(userSid);
       }
 
       // --- repeated bool visible = 6 [packed = true]; ---
@@ -206,12 +220,13 @@ namespace TestTool
       len += ProtoBuf.ReadVarInt(buf, ofs + len, out dataLen);
       int endLen = len + (int)dataLen;
 
-      // --- repeated sint64 id = 1 [packed = true]; ---
+      // --- repeated sint64 id = 1 [packed = true]; // DELTA coded ---
       if (buf[ofs + len] == (1 << 3 | 2))
       {
         len++;
         long[] id;
         len += DecodePackedSInt64(buf, ofs + len, out id);
+        DecodeDelta(id);
       }
 
       // --- repeated Info info = 4; ---
@@ -224,20 +239,22 @@ namespace TestTool
         len += DecodeDenseInfo(buf, ofs + len);
       }
 
-      // --- repeated sint64 lat = 8 [packed = true]; ---
+      // --- repeated sint64 lat = 8 [packed = true]; // DELTA coded ---
       if (buf[ofs + len] == (8 << 3 | 2))
       {
         len++;
         long[] lat;
         len += DecodePackedSInt64(buf, ofs + len, out lat);
+        DecodeDelta(lat);
       }
 
-      // --- repeated sint64 lon = 9 [packed = true]; ---
+      // --- repeated sint64 lon = 9 [packed = true]; // DELTA coded ---
       if (buf[ofs + len] == (9 << 3 | 2))
       {
         len++;
         long[] lon;
         len += DecodePackedSInt64(buf, ofs + len, out lon);
+        DecodeDelta(lon);
       }
 
       // --- repeated int32 keys_vals = 10 [packed = true]; ---
@@ -281,11 +298,23 @@ namespace TestTool
         len += DecodeDenseNodes(buf, ofs + len);
       }
 
-      //todo: repeated Way ways = 3;
+      // --- repeated Way ways = 3; ---
+      if (buf[ofs + len] == (3 << 3 | 2))
+      {
+        throw new NotImplementedException();
+      }
 
-      //todo: repeated Relation relations = 4;
+      // --- repeated Relation relations = 4; ---
+      if (buf[ofs + len] == (4 << 3 | 2))
+      {
+        throw new NotImplementedException();
+      }
 
-      //todo: repeated ChangeSet changesets = 5;
+      // --- repeated ChangeSet changesets = 5; ---
+      if (buf[ofs + len] == (5 << 3 | 2))
+      {
+        throw new NotSupportedException();
+      }
 
       return len;
     }
@@ -386,8 +415,9 @@ namespace TestTool
         #endregion
 
         test.RandomBuffering = false;
-        foreach (var blob in blocks)
+        for (int blobIndex = 0; blobIndex < blocks.Count; blobIndex++)
         {
+          var blob = blocks[blobIndex];
           int ofs = test.PrepareBuffer(blob.pbfOfs + blob.zlibOfs, blob.zlibLen);
           var outputBuf = new byte[16 * 1048576];
           int bytes = ProtoBuf.FastInflate(buf, ofs, blob.zlibLen, outputBuf, 0);
@@ -400,6 +430,7 @@ namespace TestTool
           }
           else
           {
+            Console.WriteLine("decode: {0:N0} / {1:N0}", blobIndex, blocks.Count);
             len = DecodePrimitiveBlock(outputBuf, 0);
           }
           if (len != bytes) throw new PbfParseException();
