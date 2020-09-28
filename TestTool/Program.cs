@@ -15,6 +15,7 @@ namespace TestTool
       ulong dataLen;
       len += ProtoBuf.ReadVarInt(buf, ofs + len, out dataLen);
       int endLen = len + (int)dataLen;
+
       var stringTable = new List<string>();
       while (len < endLen)
       {
@@ -28,7 +29,32 @@ namespace TestTool
       return len;
     }
 
-    static int DecodeSignedValues(byte[] buf, int ofs, out long[] val)
+    static int DecodePackedSInt32(byte[] buf, int ofs, out int[] val)
+    {
+      int len = 0;
+      ulong dataLen;
+      len += ProtoBuf.ReadVarInt(buf, ofs + len, out dataLen);
+      int endLen = len + (int)dataLen;
+
+      var result = new int[dataLen];
+      int resultLen = 0;
+
+      while (len < endLen)
+      {
+        ulong tmp;
+        len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
+        result[resultLen++] = ProtoBuf.SignedInt32((uint)tmp);
+      }
+
+      Array.Resize(ref result, result.Length);
+      val = result;
+
+      if (len != endLen) throw new PbfParseException();
+
+      return len;
+    }
+
+    static int DecodePackedSInt64(byte[] buf, int ofs, out long[] val)
     {
       int len = 0;
       ulong dataLen;
@@ -45,10 +71,114 @@ namespace TestTool
         result[resultLen++] = ProtoBuf.SignedInt64(tmp);
       }
 
+      Array.Resize(ref result, result.Length);
+      val = result;
+
       if (len != endLen) throw new PbfParseException();
+
+      return len;
+    }
+
+    static int DecodePackedInt32(byte[] buf, int ofs, out int[] val)
+    {
+      int len = 0;
+      ulong dataLen;
+      len += ProtoBuf.ReadVarInt(buf, ofs + len, out dataLen);
+      int endLen = len + (int)dataLen;
+
+      var result = new int[dataLen];
+      int resultLen = 0;
+
+      while (len < endLen)
+      {
+        ulong tmp;
+        len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
+        result[resultLen++] = (int)(uint)tmp;
+      }
 
       Array.Resize(ref result, result.Length);
       val = result;
+
+      if (len != endLen) throw new PbfParseException();
+
+      return len;
+    }
+
+    static int DecodeDenseInfo(byte[] buf, int ofs)
+    {
+      /*****
+       * message DenseInfo
+       * {
+       *   repeated int32 version = 1 [packed = true];
+       *   repeated sint64 timestamp = 2 [packed = true]; // DELTA coded
+       *   repeated sint64 changeset = 3 [packed = true]; // DELTA coded
+       *   repeated sint32 uid = 4 [packed = true]; // DELTA coded
+       *   repeated sint32 user_sid = 5 [packed = true]; // String IDs for usernames. DELTA coded
+       *   
+       *   // The visible flag is used to store history information. It indicates that
+       *   // the current object version has been created by a delete operation on the
+       *   // OSM API.
+       *   // When a writer sets this flag, it MUST add a required_features tag with
+       *   // value "HistoricalInformation" to the HeaderBlock.
+       *   // If this flag is not available for some object it MUST be assumed to be
+       *   // true if the file has the required_features tag "HistoricalInformation"
+       *   // set.
+       *   repeated bool visible = 6 [packed = true];
+       * }
+       *****/
+
+      int len = 0;
+      ulong dataLen;
+      len += ProtoBuf.ReadVarInt(buf, ofs + len, out dataLen);
+      int endLen = len + (int)dataLen;
+
+      // --- repeated int32 version = 1 [packed = true]; ---
+      if (buf[ofs + len] == (1 << 3 | 2))
+      {
+        len++;
+        int[] version;
+        len += DecodePackedInt32(buf, ofs + len, out version);
+      }
+
+      // --- repeated sint64 timestamp = 2 [packed = true]; ---
+      if (buf[ofs + len] == (2 << 3 | 2))
+      {
+        len++;
+        long[] timestamp;
+        len += DecodePackedSInt64(buf, ofs + len, out timestamp);
+      }
+
+      // --- repeated sint64 changeset = 3 [packed = true]; ---
+      if (buf[ofs + len] == (3 << 3 | 2))
+      {
+        len++;
+        long[] changeset;
+        len += DecodePackedSInt64(buf, ofs + len, out changeset);
+      }
+
+      // --- repeated sint32 uid = 4 [packed = true]; ---
+      if (buf[ofs + len] == (4 << 3 | 2))
+      {
+        len++;
+        int[] uid;
+        len += DecodePackedSInt32(buf, ofs + len, out uid);
+      }
+
+      // --- repeated sint32 user_sid = 5 [packed = true]; ---
+      if (buf[ofs + len] == (5 << 3 | 2))
+      {
+        len++;
+        int[] userSid;
+        len += DecodePackedSInt32(buf, ofs + len, out userSid);
+      }
+
+      // --- repeated bool visible = 6 [packed = true]; ---
+      if (buf[ofs + len] == (6 << 3 | 2))
+      {
+        throw new NotSupportedException();
+      }
+
+      if (len != endLen) throw new PbfParseException();
 
       return len;
     }
@@ -81,13 +211,18 @@ namespace TestTool
       {
         len++;
         long[] ids;
-        len += DecodeSignedValues(buf, ofs + len, out ids);
+        len += DecodePackedSInt64(buf, ofs + len, out ids);
       }
 
       // --- repeated Info info = 4; ---
       if (buf[ofs + len] == (4 << 3 | 2)) throw new NotSupportedException();
 
-      // todo: --- optional DenseInfo denseinfo = 5; ---
+      // --- optional DenseInfo denseinfo = 5; ---
+      if (buf[ofs + len] == (5 << 3 | 2))
+      {
+        len++;
+        len += DecodeDenseInfo(buf, ofs + len);
+      }
 
       // todo: --- repeated sint64 lat = 8 [packed = true]; ---
 
@@ -125,7 +260,7 @@ namespace TestTool
       if (buf[ofs + len] == (2 | 2 << 3))
       {
         len++;
-        DecodeDenseNodes(buf, ofs + len);
+        len += DecodeDenseNodes(buf, ofs + len);
       }
 
       //todo: repeated Way ways = 3;
