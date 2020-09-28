@@ -46,7 +46,7 @@ namespace TestTool
         result[resultLen++] = ProtoBuf.SignedInt32((uint)tmp);
       }
 
-      Array.Resize(ref result, result.Length);
+      Array.Resize(ref result, resultLen);
       val = result;
 
       if (len != endLen) throw new PbfParseException();
@@ -71,7 +71,7 @@ namespace TestTool
         result[resultLen++] = ProtoBuf.SignedInt64(tmp);
       }
 
-      Array.Resize(ref result, result.Length);
+      Array.Resize(ref result, resultLen);
       val = result;
 
       if (len != endLen) throw new PbfParseException();
@@ -96,7 +96,7 @@ namespace TestTool
         result[resultLen++] = (int)(uint)tmp;
       }
 
-      Array.Resize(ref result, result.Length);
+      Array.Resize(ref result, resultLen);
       val = result;
 
       if (len != endLen) throw new PbfParseException();
@@ -210,8 +210,8 @@ namespace TestTool
       if (buf[ofs + len] == (1 << 3 | 2))
       {
         len++;
-        long[] ids;
-        len += DecodePackedSInt64(buf, ofs + len, out ids);
+        long[] id;
+        len += DecodePackedSInt64(buf, ofs + len, out id);
       }
 
       // --- repeated Info info = 4; ---
@@ -224,11 +224,29 @@ namespace TestTool
         len += DecodeDenseInfo(buf, ofs + len);
       }
 
-      // todo: --- repeated sint64 lat = 8 [packed = true]; ---
+      // --- repeated sint64 lat = 8 [packed = true]; ---
+      if (buf[ofs + len] == (8 << 3 | 2))
+      {
+        len++;
+        long[] lat;
+        len += DecodePackedSInt64(buf, ofs + len, out lat);
+      }
 
-      // todo: --- repeated sint64 lon = 9 [packed = true]; ---
+      // --- repeated sint64 lon = 9 [packed = true]; ---
+      if (buf[ofs + len] == (9 << 3 | 2))
+      {
+        len++;
+        long[] lon;
+        len += DecodePackedSInt64(buf, ofs + len, out lon);
+      }
 
-      // todo: --- repeated int32 keys_vals = 10 [packed = true]; ---
+      // --- repeated int32 keys_vals = 10 [packed = true]; ---
+      if (buf[ofs + len] == (10 << 3 | 2))
+      {
+        len++;
+        int[] keysVals;
+        len += DecodePackedInt32(buf, ofs + len, out keysVals);
+      }
 
       if (len != endLen) throw new PbfParseException();
 
@@ -251,13 +269,13 @@ namespace TestTool
       int len = 0;
 
       // --- repeated Node nodes = 1; ---
-      if (buf[ofs + len] == (1 | 2 << 3))
+      if (buf[ofs + len] == (1 << 3 | 2))
       {
         throw new NotImplementedException();
       }
 
       // --- optional DenseNodes dense = 2; ---
-      if (buf[ofs + len] == (2 | 2 << 3))
+      if (buf[ofs + len] == (2 << 3 | 2))
       {
         len++;
         len += DecodeDenseNodes(buf, ofs + len);
