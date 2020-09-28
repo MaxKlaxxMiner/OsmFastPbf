@@ -16,7 +16,7 @@ namespace TestTool
       len += ProtoBuf.ReadVarInt(buf, ofs + len, out dataLen);
       int endLen = len + (int)dataLen;
       var stringTable = new List<string>();
-      for (; len < endLen; )
+      while (len < endLen)
       {
         string tmp;
         if (buf[ofs + len++] != (1 << 3 | 2)) throw new PbfParseException();
@@ -25,6 +25,78 @@ namespace TestTool
       }
       if (len != endLen) throw new PbfParseException();
       val = stringTable.ToArray();
+      return len;
+    }
+
+    static int DecodeSignedValues(byte[] buf, int ofs, out long[] val)
+    {
+      int len = 0;
+      ulong dataLen;
+      len += ProtoBuf.ReadVarInt(buf, ofs + len, out dataLen);
+      int endLen = len + (int)dataLen;
+
+      var result = new long[dataLen];
+      int resultLen = 0;
+
+      while (len < endLen)
+      {
+        ulong tmp;
+        len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
+        result[resultLen++] = ProtoBuf.SignedInt64(tmp);
+      }
+
+      if (len != endLen) throw new PbfParseException();
+
+      Array.Resize(ref result, result.Length);
+      val = result;
+
+      return len;
+    }
+
+    static int DecodeDenseNodes(byte[] buf, int ofs)
+    {
+      /*****
+       * message DenseNodes
+       * {
+       *   repeated sint64 id = 1 [packed = true]; // DELTA coded
+       *   
+       *   //repeated Info info = 4;
+       *   optional DenseInfo denseinfo = 5;
+       *   
+       *   repeated sint64 lat = 8 [packed = true]; // DELTA coded
+       *   repeated sint64 lon = 9 [packed = true]; // DELTA coded
+       *   
+       *   // Special packing of keys and vals into one array. May be empty if all nodes in this block are tagless.
+       *   repeated int32 keys_vals = 10 [packed = true];
+       * }
+       *****/
+
+      int len = 0;
+      ulong dataLen;
+      len += ProtoBuf.ReadVarInt(buf, ofs + len, out dataLen);
+      int endLen = len + (int)dataLen;
+
+      // --- repeated sint64 id = 1 [packed = true]; ---
+      if (buf[ofs + len] == (1 << 3 | 2))
+      {
+        len++;
+        long[] ids;
+        len += DecodeSignedValues(buf, ofs + len, out ids);
+      }
+
+      // --- repeated Info info = 4; ---
+      if (buf[ofs + len] == (4 << 3 | 2)) throw new NotSupportedException();
+
+      // todo: --- optional DenseInfo denseinfo = 5; ---
+
+      // todo: --- repeated sint64 lat = 8 [packed = true]; ---
+
+      // todo: --- repeated sint64 lon = 9 [packed = true]; ---
+
+      // todo: --- repeated int32 keys_vals = 10 [packed = true]; ---
+
+      if (len != endLen) throw new PbfParseException();
+
       return len;
     }
 
@@ -52,15 +124,8 @@ namespace TestTool
       // --- optional DenseNodes dense = 2; ---
       if (buf[ofs + len] == (2 | 2 << 3))
       {
-        byte t = buf[ofs + len++];
-        if (t != (2 | 2 << 3)) throw new PbfParseException(); // Length
-        ulong nodesLen;
-        len += ProtoBuf.ReadVarInt(buf, ofs + len, out nodesLen);
-        int endNodes = len + (int)nodesLen;
-        for (; len < endNodes; )
-        {
-          //len += DecodeNode(buf, ofs + len);
-        }
+        len++;
+        DecodeDenseNodes(buf, ofs + len);
       }
 
       //todo: repeated Way ways = 3;
@@ -109,7 +174,7 @@ namespace TestTool
         ulong dataLen;
         len += ProtoBuf.ReadVarInt(buf, ofs + len, out dataLen);
         int endLen = len + (int)dataLen;
-        for (; len < endLen; len++)
+        while (len < endLen)
         {
           len += DecodePrimitiveGroup(buf, ofs + len);
         }
