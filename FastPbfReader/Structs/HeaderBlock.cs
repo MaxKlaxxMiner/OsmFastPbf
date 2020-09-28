@@ -1,9 +1,10 @@
 using System.Collections.Generic;
+using OsmFastPbf.Helper;
 // ReSharper disable UnusedMember.Global
 // ReSharper disable MemberCanBePrivate.Global
 // ReSharper disable NotAccessedField.Global
 
-namespace OsmFastPbf.Helper
+namespace OsmFastPbf
 {
   /// <summary>
   /// Struktur eines Header-Blockes

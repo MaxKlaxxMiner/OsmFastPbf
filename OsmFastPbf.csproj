@@ -42,10 +42,10 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="FastPbfReader\FastPbfReader.cs" />
-    <Compile Include="FastPbfReader\Helper\HeaderBBox.cs" />
-    <Compile Include="FastPbfReader\Helper\HeaderBlock.cs" />
+    <Compile Include="FastPbfReader\Structs\HeaderBBox.cs" />
+    <Compile Include="FastPbfReader\Structs\HeaderBlock.cs" />
     <Compile Include="FastPbfReader\PbfParseException.cs" />
-    <Compile Include="FastPbfReader\Helper\OsmBlob.cs" />
+    <Compile Include="FastPbfReader\Structs\OsmBlob.cs" />
     <Compile Include="FastPbfReader\Helper\ProtoBuf.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="zlibTuned\Crc32Helper.cs" />

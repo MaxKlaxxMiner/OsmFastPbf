@@ -1,9 +1,10 @@
 ﻿using System;
+using OsmFastPbf.Helper;
 // ReSharper disable MemberCanBePrivate.Global
 // ReSharper disable UnusedMember.Global
 // ReSharper disable UnusedMethodReturnValue.Global
 
-namespace OsmFastPbf.Helper
+namespace OsmFastPbf
 {
   /// <summary>
   /// Struktur eines OSM-Blocks

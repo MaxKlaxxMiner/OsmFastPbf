@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using OsmFastPbf;
 using OsmFastPbf.Helper;
 
@@ -9,137 +10,7 @@ namespace TestTool
 {
   partial class Program
   {
-    static int DecodeStringTable(byte[] buf, int ofs, out string[] val)
-    {
-      int len = 0;
-      ulong dataLen;
-      len += ProtoBuf.ReadVarInt(buf, ofs + len, out dataLen);
-      int endLen = len + (int)dataLen;
-
-      var stringTable = new List<string>();
-      while (len < endLen)
-      {
-        string tmp;
-        if (buf[ofs + len++] != (1 << 3 | 2)) throw new PbfParseException();
-        len += ProtoBuf.ReadString(buf, ofs + len, out tmp);
-        stringTable.Add(tmp);
-      }
-      if (len != endLen) throw new PbfParseException();
-      val = stringTable.ToArray();
-      return len;
-    }
-
-    static int DecodePackedSInt32(byte[] buf, int ofs, out int[] val)
-    {
-      int len = 0;
-      ulong dataLen;
-      len += ProtoBuf.ReadVarInt(buf, ofs + len, out dataLen);
-      int endLen = len + (int)dataLen;
-
-      var result = new int[dataLen];
-      int resultLen = 0;
-
-      while (len < endLen)
-      {
-        ulong tmp;
-        len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
-        result[resultLen++] = ProtoBuf.SignedInt32((uint)tmp);
-      }
-
-      Array.Resize(ref result, resultLen);
-      val = result;
-
-      if (len != endLen) throw new PbfParseException();
-
-      return len;
-    }
-
-    static int DecodePackedSInt64(byte[] buf, int ofs, out long[] val)
-    {
-      int len = 0;
-      ulong dataLen;
-      len += ProtoBuf.ReadVarInt(buf, ofs + len, out dataLen);
-      int endLen = len + (int)dataLen;
-
-      var result = new long[dataLen];
-      int resultLen = 0;
-
-      while (len < endLen)
-      {
-        ulong tmp;
-        len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
-        result[resultLen++] = ProtoBuf.SignedInt64(tmp);
-      }
-
-      Array.Resize(ref result, resultLen);
-      val = result;
-
-      if (len != endLen) throw new PbfParseException();
-
-      return len;
-    }
-
-    static int DecodePackedInt32(byte[] buf, int ofs, out int[] val)
-    {
-      int len = 0;
-      ulong dataLen;
-      len += ProtoBuf.ReadVarInt(buf, ofs + len, out dataLen);
-      int endLen = len + (int)dataLen;
-
-      var result = new int[dataLen];
-      int resultLen = 0;
-
-      while (len < endLen)
-      {
-        ulong tmp;
-        len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
-        result[resultLen++] = (int)(uint)tmp;
-      }
-
-      Array.Resize(ref result, resultLen);
-      val = result;
-
-      if (len != endLen) throw new PbfParseException();
-
-      return len;
-    }
-
-    static int DecodePackedUInt32(byte[] buf, int ofs, out uint[] val)
-    {
-      int len = 0;
-      ulong dataLen;
-      len += ProtoBuf.ReadVarInt(buf, ofs + len, out dataLen);
-      int endLen = len + (int)dataLen;
-
-      var result = new uint[dataLen];
-      int resultLen = 0;
-
-      while (len < endLen)
-      {
-        ulong tmp;
-        len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
-        result[resultLen++] = (uint)tmp;
-      }
-
-      Array.Resize(ref result, resultLen);
-      val = result;
-
-      if (len != endLen) throw new PbfParseException();
-
-      return len;
-    }
-
-    static void DecodeDelta(long[] values)
-    {
-      for (int i = 1; i < values.Length; i++) values[i] += values[i - 1];
-    }
-
-    static void DecodeDelta(int[] values)
-    {
-      for (int i = 1; i < values.Length; i++) values[i] += values[i - 1];
-    }
-
-    static int DecodeDenseInfo(byte[] buf, int ofs)
+    static int DecodeDenseInfo(byte[] buf, int ofs, int itemCount)
     {
       /*****
        * message DenseInfo
@@ -172,7 +43,7 @@ namespace TestTool
       {
         len++;
         int[] version;
-        len += DecodePackedInt32(buf, ofs + len, out version);
+        len += ProtoBuf.DecodePackedInt32(buf, ofs + len, out version, itemCount);
       }
 
       // --- repeated sint64 timestamp = 2 [packed = true]; // DELTA coded ---
@@ -180,8 +51,7 @@ namespace TestTool
       {
         len++;
         long[] timestamp;
-        len += DecodePackedSInt64(buf, ofs + len, out timestamp);
-        DecodeDelta(timestamp);
+        len += ProtoBuf.DecodePackedSInt64Delta(buf, ofs + len, out timestamp, itemCount);
       }
 
       // --- repeated sint64 changeset = 3 [packed = true]; // DELTA coded ---
@@ -189,8 +59,7 @@ namespace TestTool
       {
         len++;
         long[] changeset;
-        len += DecodePackedSInt64(buf, ofs + len, out changeset);
-        DecodeDelta(changeset);
+        len += ProtoBuf.DecodePackedSInt64Delta(buf, ofs + len, out changeset, itemCount);
       }
 
       // --- repeated sint32 uid = 4 [packed = true]; // DELTA coded ---
@@ -198,8 +67,7 @@ namespace TestTool
       {
         len++;
         int[] uid;
-        len += DecodePackedSInt32(buf, ofs + len, out uid);
-        DecodeDelta(uid);
+        len += ProtoBuf.DecodePackedSInt32Delta(buf, ofs + len, out uid, itemCount);
       }
 
       // --- repeated sint32 user_sid = 5 [packed = true]; // String IDs for usernames. DELTA coded ---
@@ -207,8 +75,7 @@ namespace TestTool
       {
         len++;
         int[] userSid;
-        len += DecodePackedSInt32(buf, ofs + len, out userSid);
-        DecodeDelta(userSid);
+        len += ProtoBuf.DecodePackedSInt32Delta(buf, ofs + len, out userSid, itemCount);
       }
 
       // --- repeated bool visible = 6 [packed = true]; ---
@@ -244,14 +111,17 @@ namespace TestTool
       ulong dataLen;
       len += ProtoBuf.ReadVarInt(buf, ofs + len, out dataLen);
       int endLen = len + (int)dataLen;
+      long[] id;
 
       // --- repeated sint64 id = 1 [packed = true]; // DELTA coded ---
       if (buf[ofs + len] == (1 << 3 | 2))
       {
         len++;
-        long[] id;
-        len += DecodePackedSInt64(buf, ofs + len, out id);
-        DecodeDelta(id);
+        len += ProtoBuf.DecodePackedSInt64Delta(buf, ofs + len, out id);
+      }
+      else
+      {
+        id = new long[0];
       }
 
       // --- repeated Info info = 4; ---
@@ -261,7 +131,7 @@ namespace TestTool
       if (buf[ofs + len] == (5 << 3 | 2))
       {
         len++;
-        len += DecodeDenseInfo(buf, ofs + len);
+        len += DecodeDenseInfo(buf, ofs + len, id.Length);
       }
 
       // --- repeated sint64 lat = 8 [packed = true]; // DELTA coded ---
@@ -269,8 +139,7 @@ namespace TestTool
       {
         len++;
         long[] lat;
-        len += DecodePackedSInt64(buf, ofs + len, out lat);
-        DecodeDelta(lat);
+        len += ProtoBuf.DecodePackedSInt64Delta(buf, ofs + len, out lat, id.Length);
       }
 
       // --- repeated sint64 lon = 9 [packed = true]; // DELTA coded ---
@@ -278,8 +147,7 @@ namespace TestTool
       {
         len++;
         long[] lon;
-        len += DecodePackedSInt64(buf, ofs + len, out lon);
-        DecodeDelta(lon);
+        len += ProtoBuf.DecodePackedSInt64Delta(buf, ofs + len, out lon, id.Length);
       }
 
       // --- repeated int32 keys_vals = 10 [packed = true]; ---
@@ -287,7 +155,7 @@ namespace TestTool
       {
         len++;
         int[] keysVals;
-        len += DecodePackedInt32(buf, ofs + len, out keysVals);
+        len += ProtoBuf.DecodePackedInt32(buf, ofs + len, out keysVals);
       }
 
       if (len != endLen) throw new PbfParseException();
@@ -407,7 +275,7 @@ namespace TestTool
       {
         len++;
         uint[] keys;
-        len += DecodePackedUInt32(buf, ofs + len, out keys);
+        len += ProtoBuf.DecodePackedUInt32(buf, ofs + len, out keys);
       }
 
       // --- repeated uint32 vals = 3 [packed = true]; ---
@@ -415,7 +283,7 @@ namespace TestTool
       {
         len++;
         uint[] vals;
-        len += DecodePackedUInt32(buf, ofs + len, out vals);
+        len += ProtoBuf.DecodePackedUInt32(buf, ofs + len, out vals);
       }
 
       // --- optional Info info = 4; ---
@@ -430,8 +298,7 @@ namespace TestTool
       {
         len++;
         long[] refs;
-        len += DecodePackedSInt64(buf, ofs + len, out refs);
-        DecodeDelta(refs);
+        len += ProtoBuf.DecodePackedSInt64Delta(buf, ofs + len, out refs);
       }
 
       if (len != endLen) throw new PbfParseException();
@@ -481,7 +348,7 @@ namespace TestTool
       {
         len++;
         uint[] keys;
-        len += DecodePackedUInt32(buf, ofs + len, out keys);
+        len += ProtoBuf.DecodePackedUInt32(buf, ofs + len, out keys);
       }
 
       // --- repeated uint32 vals = 3 [packed = true]; ---
@@ -489,7 +356,7 @@ namespace TestTool
       {
         len++;
         uint[] vals;
-        len += DecodePackedUInt32(buf, ofs + len, out vals);
+        len += ProtoBuf.DecodePackedUInt32(buf, ofs + len, out vals);
       }
 
       // --- optional Info info = 4; ---
@@ -504,7 +371,7 @@ namespace TestTool
       {
         len++;
         int[] rolesSid;
-        len += DecodePackedInt32(buf, ofs + len, out rolesSid);
+        len += ProtoBuf.DecodePackedInt32(buf, ofs + len, out rolesSid);
       }
 
       // --- repeated sint64 memids = 9 [packed = true]; // DELTA encoded ---
@@ -512,8 +379,7 @@ namespace TestTool
       {
         len++;
         long[] memids;
-        len += DecodePackedSInt64(buf, ofs + len, out memids);
-        DecodeDelta(memids);
+        len += ProtoBuf.DecodePackedSInt64Delta(buf, ofs + len, out memids);
       }
 
       // --- repeated MemberType types = 10 [packed = true]; ---
@@ -521,7 +387,7 @@ namespace TestTool
       {
         len++;
         int[] types;
-        len += DecodePackedInt32(buf, ofs + len, out types);
+        len += ProtoBuf.DecodePackedInt32(buf, ofs + len, out types);
       }
 
       if (len != endLen) throw new PbfParseException();
@@ -608,7 +474,7 @@ namespace TestTool
       // --- required StringTable stringtable = 1; ---
       if (buf[ofs + len++] != (1 << 3 | 2)) throw new PbfParseException();
       string[] stringTable;
-      len += DecodeStringTable(buf, ofs + len, out stringTable);
+      len += ProtoBuf.DecodeStringTable(buf, ofs + len, out stringTable);
 
       // --- repeated PrimitiveGroup primitivegroup = 2; ---
       while (buf[ofs + len] == (2 << 3 | 2))
@@ -635,6 +501,19 @@ namespace TestTool
       return len;
     }
 
+    public struct BlobTask
+    {
+      public int pbfBufferOfs;
+      public OsmBlob blob;
+      public int outputOfs;
+      public BlobTask(int pbfBufferOfs, OsmBlob blob, int outputOfs)
+      {
+        this.pbfBufferOfs = pbfBufferOfs;
+        this.blob = blob;
+        this.outputOfs = outputOfs;
+      }
+    }
+
     static void Main(string[] args)
     {
       //BufferTest();
@@ -643,7 +522,7 @@ namespace TestTool
       for (int i = 0; i < 32 && !File.Exists(path); i++) path = "../" + path;
       if (!File.Exists(path)) throw new FileNotFoundException(path.TrimStart('.', '/'));
 
-      using (var test = new FastPbfReader(path))
+      using (var test = new FastPbfReader(path, 1024 * 1048576))
       {
         #region # // --- Index einlesen ---
         test.RandomBuffering = true;
@@ -652,7 +531,7 @@ namespace TestTool
         var buf = test.buffer;
         int tim = 0;
 
-        var blocks = new List<OsmBlob>();
+        var blobs = new List<OsmBlob>();
         for (; ; )
         {
           if (tim != Environment.TickCount)
@@ -665,37 +544,66 @@ namespace TestTool
           OsmBlob.DecodeQuick(buf, ofs, out blob);
           blob.pbfOfs = pos;
           pos += blob.blobLen;
-          blocks.Add(blob);
+          blobs.Add(blob);
           if (pos >= test.pbfSize) break;
         }
 
         Console.WriteLine();
-        Console.WriteLine("            Blocks: {0,15:N0}", blocks.Count);
-        Console.WriteLine("    PBF-Compressed: {0,15:N0} Bytes", blocks.Sum(blob => (long)blob.blobLen));
-        Console.WriteLine("  PBF-Uncompressed: {0,15:N0} Bytes", blocks.Sum(blob => (long)(blob.blobLen - blob.zlibLen + blob.rawSize)));
+        Console.WriteLine("            Blocks: {0,15:N0}", blobs.Count);
+        Console.WriteLine("    PBF-Compressed: {0,15:N0} Bytes", blobs.Sum(blob => (long)blob.blobLen));
+        Console.WriteLine("  PBF-Uncompressed: {0,15:N0} Bytes", blobs.Sum(blob => (long)(blob.blobLen - blob.zlibLen + blob.rawSize)));
         Console.WriteLine();
         #endregion
 
         test.RandomBuffering = false;
-        for (int blobIndex = 15687; blobIndex < blocks.Count; blobIndex++)
+        int cores = 4;
+        var outputBuf = new byte[cores * 16 * 1048576];
+        for (int blobIndex = 0; blobIndex < blobs.Count; )
         {
-          var blob = blocks[blobIndex];
-          int ofs = test.PrepareBuffer(blob.pbfOfs + blob.zlibOfs, blob.zlibLen);
-          var outputBuf = new byte[16 * 1048576];
-          int bytes = ProtoBuf.FastInflate(buf, ofs, blob.zlibLen, outputBuf, 0);
-          if (bytes != blob.rawSize) throw new PbfParseException();
-          int len;
-          if (blob.IsHeader)
+          var todo = new List<BlobTask>();
+          var blobFirst = blobs[blobIndex];
+          int ofs = test.PrepareBuffer(blobFirst.pbfOfs + blobFirst.zlibOfs, blobFirst.zlibLen);
+          if (blobs.Count - blobIndex > cores && test.CheckFastBuffer(blobs[blobIndex + cores - 1].pbfOfs + blobs[blobIndex + cores - 1].zlibOfs, blobs[blobIndex + cores-1].zlibLen) >= 0)
           {
-            HeaderBlock headerBlock;
-            len = HeaderBlock.Decode(outputBuf, 0, out headerBlock);
+            for (int i = 0; i < cores; i++)
+            {
+              todo.Add(new BlobTask(test.CheckFastBuffer(blobs[blobIndex + i].pbfOfs + blobs[blobIndex + i].zlibOfs, blobs[blobIndex + i].zlibLen), blobs[blobIndex + i], i * 16 * 1048576));
+            }
           }
           else
           {
-            Console.WriteLine("decode: {0:N0} / {1:N0}", blobIndex, blocks.Count);
-            len = DecodePrimitiveBlock(outputBuf, 0);
+            todo.Add(new BlobTask(ofs, blobFirst, 0 * 16 * 1048576));
           }
-          if (len != bytes) throw new PbfParseException();
+
+          Parallel.ForEach(todo, blob =>
+          {
+            // --- entpacken ---
+            int bytes = ProtoBuf.FastInflate(buf, blob.pbfBufferOfs, blob.blob.zlibLen, outputBuf, blob.outputOfs);
+            if (bytes != blob.blob.rawSize) throw new PbfParseException();
+            outputBuf[blob.outputOfs + bytes] = 0;
+
+            // --- decoden ---
+            int len;
+            if (blob.blob.IsHeader)
+            {
+              lock (outputBuf)
+              {
+                blobIndex++;
+              }
+              HeaderBlock headerBlock;
+              len = HeaderBlock.Decode(outputBuf, blob.outputOfs, out headerBlock);
+            }
+            else
+            {
+              lock (outputBuf)
+              {
+                blobIndex++;
+                Console.WriteLine("decode: {0:N0} / {1:N0}", blobIndex, blobs.Count);
+              }
+              len = DecodePrimitiveBlock(outputBuf, blob.outputOfs);
+            }
+            if (len != blob.blob.rawSize) throw new PbfParseException();
+          });
         }
       }
     }

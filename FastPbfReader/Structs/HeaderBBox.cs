@@ -1,6 +1,7 @@
 ﻿// ReSharper disable MemberCanBePrivate.Global
+using OsmFastPbf.Helper;
 
-namespace OsmFastPbf.Helper
+namespace OsmFastPbf
 {
   /// <summary>
   /// Struktur einer Boundary-Box
