@@ -439,6 +439,96 @@ namespace TestTool
       return len;
     }
 
+    static int DecodeRelation(byte[] buf, int ofs)
+    {
+      /*****
+       * message Relation
+       * {
+       *   enum MemberType
+       *   {
+       *     NODE = 0;
+       *     WAY = 1;
+       *     RELATION = 2;
+       *   } 
+       *   required int64 id = 1;
+       *   
+       *   // Parallel arrays.
+       *   repeated uint32 keys = 2 [packed = true];
+       *   repeated uint32 vals = 3 [packed = true];
+       *   
+       *   optional Info info = 4;
+       *   
+       *   // Parallel arrays
+       *   repeated int32 roles_sid = 8 [packed = true];
+       *   repeated sint64 memids = 9 [packed = true]; // DELTA encoded
+       *   repeated MemberType types = 10 [packed = true];
+       * }
+       *****/
+
+      int len = 0;
+      ulong dataLen;
+      len += ProtoBuf.ReadVarInt(buf, ofs + len, out dataLen);
+      int endLen = len + (int)dataLen;
+
+      // --- required int64 id = 1; ---
+      if (buf[ofs + len++] != (1 << 3 | 0)) throw new PbfParseException();
+      ulong tmp;
+      len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
+      long id = (long)tmp;
+
+      // --- repeated uint32 keys = 2 [packed = true]; ---
+      if (buf[ofs + len] == (2 << 3 | 2))
+      {
+        len++;
+        uint[] keys;
+        len += DecodePackedUInt32(buf, ofs + len, out keys);
+      }
+
+      // --- repeated uint32 vals = 3 [packed = true]; ---
+      if (buf[ofs + len] == (3 << 3 | 2))
+      {
+        len++;
+        uint[] vals;
+        len += DecodePackedUInt32(buf, ofs + len, out vals);
+      }
+
+      // --- optional Info info = 4; ---
+      if (buf[ofs + len] == (4 << 3 | 2))
+      {
+        len++;
+        len += DecodeInfo(buf, ofs + len);
+      }
+
+      // --- repeated int32 roles_sid = 8 [packed = true]; ---
+      if (buf[ofs + len] == (8 << 3 | 2))
+      {
+        len++;
+        int[] rolesSid;
+        len += DecodePackedInt32(buf, ofs + len, out rolesSid);
+      }
+
+      // --- repeated sint64 memids = 9 [packed = true]; // DELTA encoded ---
+      if (buf[ofs + len] == (9 << 3 | 2))
+      {
+        len++;
+        long[] memids;
+        len += DecodePackedSInt64(buf, ofs + len, out memids);
+        DecodeDelta(memids);
+      }
+
+      // --- repeated MemberType types = 10 [packed = true]; ---
+      if (buf[ofs + len] == (10 << 3 | 2))
+      {
+        len++;
+        int[] types;
+        len += DecodePackedInt32(buf, ofs + len, out types);
+      }
+
+      if (len != endLen) throw new PbfParseException();
+
+      return len;
+    }
+
     static int DecodePrimitiveGroup(byte[] buf, int ofs)
     {
       /*****
@@ -477,7 +567,8 @@ namespace TestTool
       // --- repeated Relation relations = 4; ---
       if (buf[ofs + len] == (4 << 3 | 2))
       {
-        throw new NotImplementedException();
+        len++;
+        len += DecodeRelation(buf, ofs + len);
       }
 
       // --- repeated ChangeSet changesets = 5; ---
@@ -530,6 +621,7 @@ namespace TestTool
         {
           len += DecodePrimitiveGroup(buf, ofs + len);
         }
+        if (len != endLen) throw new PbfParseException();
       }
 
       //todo: optional int32 granularity = 17 [default=100];
@@ -585,7 +677,7 @@ namespace TestTool
         #endregion
 
         test.RandomBuffering = false;
-        for (int blobIndex = 10322; blobIndex < blocks.Count; blobIndex++)
+        for (int blobIndex = 15687; blobIndex < blocks.Count; blobIndex++)
         {
           var blob = blocks[blobIndex];
           int ofs = test.PrepareBuffer(blob.pbfOfs + blob.zlibOfs, blob.zlibLen);
