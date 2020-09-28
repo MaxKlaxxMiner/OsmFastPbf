@@ -67,7 +67,7 @@ namespace OsmFastPbf.zlibTuned.FastInflater
       if ((windowFilled += len) > WINDOW_SIZE) throw new InvalidOperationException("Window full");
       int rep_start = (windowEnd - dist) & WINDOW_MASK;
       int border = WINDOW_SIZE - len;
-      if (rep_start <= border && windowEnd < border)
+      if (len <= dist && rep_start <= border && windowEnd < border)
       {
         CopyBytes(window + rep_start, window + windowEnd, len);
         windowEnd += len;

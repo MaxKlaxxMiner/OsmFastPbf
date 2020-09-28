@@ -1,4 +1,6 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.IO;
+using System.IO.Compression;
+using System.Runtime.CompilerServices;
 using System.Text;
 using OsmFastPbf.zlibTuned.FastInflater;
 // ReSharper disable MemberCanBePrivate.Global
@@ -110,6 +112,15 @@ namespace OsmFastPbf.Helper
       var inf = new Inflater();
       inf.SetInput(buf, bufOfs + 2, bufLen - 2); // Buffer setzen und Header überspringen (2 Bytes)
       return inf.Inflate(output, outputOfs, output.Length - outputOfs);
+
+      // --- .Net default Deflater (takes more than 40% decompressing time) ---
+      //using (var src = new MemoryStream(buf, bufOfs + 2, bufLen - 2, false))
+      //using (var zlib = new DeflateStream(src, CompressionMode.Decompress))
+      //using (var dst = new MemoryStream(output, outputOfs, output.Length - outputOfs))
+      //{
+      //  zlib.CopyTo(dst);
+      //  return (int)dst.Position - outputOfs;
+      //}
     }
   }
 }
