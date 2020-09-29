@@ -9,7 +9,7 @@ namespace OsmFastPbf
   /// <summary>
   /// Struktur eines OSM-Blocks
   /// </summary>
-  public struct OsmBlob
+  public sealed class OsmBlob
   {
     /// <summary>
     /// globale Position innerhalb der PBF-Datei
@@ -31,6 +31,19 @@ namespace OsmFastPbf
     /// Länge der unkomprimierten Daten
     /// </summary>
     public int rawSize;
+
+    /// <summary>
+    /// gibt an, ob der Block bereits gescannt wurde
+    /// </summary>
+    public bool scanned;
+    /// <summary>
+    /// kleinste enthaltende Node-ID oder 0 = wenn unbekannt
+    /// </summary>
+    public long minNodeId;
+    /// <summary>
+    /// größte enthaltende Node-ID oder 0 = wenn unbekannt
+    /// </summary>
+    public long maxNodeId;
 
     /// <summary>
     /// handelt es sich um einen Header-Block?
@@ -146,6 +159,30 @@ namespace OsmFastPbf
     public override string ToString()
     {
       return new { pbfOfs, blobLen, rawSize, zlibOfs, zlibLen }.ToString();
+    }
+
+    public string ToTsv()
+    {
+      return string.Join("\t", pbfOfs, blobLen, zlibOfs, zlibLen, rawSize, scanned ? 1 : 0, minNodeId, maxNodeId);
+    }
+
+    public static OsmBlob FromTsv(string line)
+    {
+      var sp = line.Split('\t');
+      if (sp.Length != 8) throw new ArgumentException("line");
+
+      var result = new OsmBlob
+      {
+        pbfOfs = long.Parse(sp[0]),
+        blobLen = int.Parse(sp[1]),
+        zlibOfs = int.Parse(sp[2]),
+        zlibLen = int.Parse(sp[3]),
+        rawSize = int.Parse(sp[4]),
+        scanned = sp[5] == "1",
+        minNodeId = long.Parse(sp[6]),
+        maxNodeId = long.Parse(sp[7])
+      };
+      return result;
     }
   }
 }
