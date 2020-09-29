@@ -37,13 +37,41 @@ namespace OsmFastPbf
     /// </summary>
     public bool scanned;
     /// <summary>
-    /// kleinste enthaltende Node-ID oder 0 = wenn unbekannt
+    /// Anzahl der enhaltenen Nodes
+    /// </summary>
+    public long nodeCount;
+    /// <summary>
+    /// kleinste enthaltende Node-ID oder 0 = wenn nicht vorhanden
     /// </summary>
     public long minNodeId;
     /// <summary>
-    /// größte enthaltende Node-ID oder 0 = wenn unbekannt
+    /// größte enthaltende Node-ID oder 0 = wenn nicht vorhanden
     /// </summary>
     public long maxNodeId;
+    /// <summary>
+    /// Anzahl der enthaltenen Ways
+    /// </summary>
+    public long wayCount;
+    /// <summary>
+    /// kleinste enthaltende Way-ID oder 0 = wenn nicht vorhanden
+    /// </summary>
+    public long minWayId;
+    /// <summary>
+    /// größte enhaltende Way-ID oder 0 = wenn nicht vorhanden
+    /// </summary>
+    public long maxWayId;
+    /// <summary>
+    /// Anzahl der enthaltenen Relations
+    /// </summary>
+    public long relationCount;
+    /// <summary>
+    /// kleinste enthaltende Relation-ID oder 0 = wenn nicht vorhanden
+    /// </summary>
+    public long minRelationId;
+    /// <summary>
+    /// größte enthaltende Relation-ID oder 0 = wenn nicht vorhanden
+    /// </summary>
+    public long maxRelationId;
 
     /// <summary>
     /// handelt es sich um einen Header-Block?
@@ -158,18 +186,27 @@ namespace OsmFastPbf
     /// <returns>lesbare Zeichenkette</returns>
     public override string ToString()
     {
-      return new { pbfOfs, blobLen, rawSize, zlibOfs, zlibLen }.ToString();
+      return new { pbfOfs, blobLen, rawSize, zlibOfs, zlibLen, nodeCount, wayCount, relationCount }.ToString();
     }
 
+    /// <summary>
+    /// gibt den Inhalt als speicherbare TSV-Zeile zurück (Tabulator getrennt)
+    /// </summary>
+    /// <returns>Tabulator getrennte Spalten</returns>
     public string ToTsv()
     {
-      return string.Join("\t", pbfOfs, blobLen, zlibOfs, zlibLen, rawSize, scanned ? 1 : 0, minNodeId, maxNodeId);
+      return string.Join("\t", pbfOfs, blobLen, zlibOfs, zlibLen, rawSize, scanned ? 1 : 0, nodeCount, minNodeId, maxNodeId, wayCount, minWayId, maxWayId, relationCount, minRelationId, maxRelationId);
     }
 
+    /// <summary>
+    /// liest eine TSV-Zeile wieder ein (Tabulator getrennt)
+    /// </summary>
+    /// <param name="line">TSV-Zeile, welche eingelesen werden soll (Tabulator getrennt)</param>
+    /// <returns>eingelesenes OsmBlob-Element</returns>
     public static OsmBlob FromTsv(string line)
     {
       var sp = line.Split('\t');
-      if (sp.Length != 8) throw new ArgumentException("line");
+      if (sp.Length != 15) throw new ArgumentException("line");
 
       var result = new OsmBlob
       {
@@ -179,8 +216,15 @@ namespace OsmFastPbf
         zlibLen = int.Parse(sp[3]),
         rawSize = int.Parse(sp[4]),
         scanned = sp[5] == "1",
-        minNodeId = long.Parse(sp[6]),
-        maxNodeId = long.Parse(sp[7])
+        nodeCount = long.Parse(sp[6]),
+        minNodeId = long.Parse(sp[7]),
+        maxNodeId = long.Parse(sp[8]),
+        wayCount = long.Parse(sp[9]),
+        minWayId = long.Parse(sp[10]),
+        maxWayId = long.Parse(sp[11]),
+        relationCount = long.Parse(sp[12]),
+        minRelationId = long.Parse(sp[13]),
+        maxRelationId = long.Parse(sp[14])
       };
       return result;
     }

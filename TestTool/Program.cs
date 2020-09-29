@@ -88,7 +88,7 @@ namespace TestTool
       return len;
     }
 
-    static int DecodeDenseNodes(byte[] buf, int ofs, out long minNode, out long maxNode)
+    static int DecodeDenseNodes(byte[] buf, int ofs, out long count, out long minId, out long maxId)
     {
       /*****
        * message DenseNodes
@@ -117,14 +117,16 @@ namespace TestTool
       {
         len++;
         len += ProtoBuf.DecodePackedSInt64Delta(buf, ofs + len, out id);
-        minNode = id[0];
-        maxNode = id[id.Length - 1];
+        count = id.Length;
+        minId = id[0];
+        maxId = id[id.Length - 1];
       }
       else
       {
         id = new long[0];
-        minNode = 0;
-        maxNode = 0;
+        count = 0;
+        minId = 0;
+        maxId = 0;
       }
 
       // --- repeated Info info = 4; ---
@@ -246,7 +248,7 @@ namespace TestTool
       return len;
     }
 
-    static int DecodeWays(byte[] buf, int ofs)
+    static int DecodeWays(byte[] buf, int ofs, out long id)
     {
       /*****
        * message Way
@@ -271,7 +273,7 @@ namespace TestTool
       if (buf[ofs + len++] != (1 << 3 | 0)) throw new PbfParseException();
       ulong tmp;
       len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
-      long id = (long)tmp;
+      id = (long)tmp;
 
       // --- repeated uint32 keys = 2 [packed = true]; ---
       if (buf[ofs + len] == (2 << 3 | 2))
@@ -309,7 +311,7 @@ namespace TestTool
       return len;
     }
 
-    static int DecodeRelation(byte[] buf, int ofs)
+    static int DecodeRelation(byte[] buf, int ofs, out long id)
     {
       /*****
        * message Relation
@@ -344,7 +346,7 @@ namespace TestTool
       if (buf[ofs + len++] != (1 << 3 | 0)) throw new PbfParseException();
       ulong tmp;
       len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
-      long id = (long)tmp;
+      id = (long)tmp;
 
       // --- repeated uint32 keys = 2 [packed = true]; ---
       if (buf[ofs + len] == (2 << 3 | 2))
@@ -398,7 +400,7 @@ namespace TestTool
       return len;
     }
 
-    static int DecodePrimitiveGroup(byte[] buf, int ofs, out long minNode, out long maxNode)
+    static int DecodePrimitiveGroup(byte[] buf, int ofs, OsmBlob blob = null)
     {
       /*****
        * message PrimitiveGroup
@@ -423,26 +425,42 @@ namespace TestTool
       if (buf[ofs + len] == (2 << 3 | 2))
       {
         len++;
-        len += DecodeDenseNodes(buf, ofs + len, out minNode, out maxNode);
-      }
-      else
-      {
-        minNode = 0;
-        maxNode = 0;
+        long tmpCount, tmpMin, tmpMax;
+        len += DecodeDenseNodes(buf, ofs + len, out tmpCount, out tmpMin, out tmpMax);
+        if (blob != null)
+        {
+          blob.nodeCount += tmpCount;
+          if (blob.minNodeId == 0 || tmpMin < blob.minNodeId) blob.minNodeId = tmpMin;
+          if (blob.maxNodeId == 0 || tmpMax > blob.maxNodeId) blob.maxNodeId = tmpMax;
+        }
       }
 
       // --- repeated Way ways = 3; ---
       if (buf[ofs + len] == (3 << 3 | 2))
       {
         len++;
-        len += DecodeWays(buf, ofs + len);
+        long tmp;
+        len += DecodeWays(buf, ofs + len, out tmp);
+        if (blob != null)
+        {
+          blob.wayCount++;
+          if (blob.minWayId == 0 || tmp < blob.minWayId) blob.minWayId = tmp;
+          if (blob.maxWayId == 0 || tmp > blob.maxWayId) blob.maxWayId = tmp;
+        }
       }
 
       // --- repeated Relation relations = 4; ---
       if (buf[ofs + len] == (4 << 3 | 2))
       {
         len++;
-        len += DecodeRelation(buf, ofs + len);
+        long tmp;
+        len += DecodeRelation(buf, ofs + len, out tmp);
+        if (blob != null)
+        {
+          blob.relationCount++;
+          if (blob.minRelationId == 0 || tmp < blob.minRelationId) blob.minRelationId = tmp;
+          if (blob.maxRelationId == 0 || tmp > blob.maxRelationId) blob.maxRelationId = tmp;
+        }
       }
 
       // --- repeated ChangeSet changesets = 5; ---
@@ -454,7 +472,7 @@ namespace TestTool
       return len;
     }
 
-    static int DecodePrimitiveBlock(byte[] buf, int ofs, OsmBlob blob)
+    static int DecodePrimitiveBlock(byte[] buf, int ofs, OsmBlob blob = null)
     {
       /*****
        * message PrimitiveBlock
@@ -495,13 +513,7 @@ namespace TestTool
         int endLen = len + (int)dataLen;
         while (len < endLen)
         {
-          long minTmp, maxTmp;
-          len += DecodePrimitiveGroup(buf, ofs + len, out minTmp, out maxTmp);
-          if (minTmp > 0 && maxTmp > 0)
-          {
-            if (blob.minNodeId == 0 || minTmp < blob.minNodeId) blob.minNodeId = minTmp;
-            if (blob.maxNodeId == 0 || maxTmp > blob.maxNodeId) blob.maxNodeId = maxTmp;
-          }
+          len += DecodePrimitiveGroup(buf, ofs + len, blob);
         }
         if (len != endLen) throw new PbfParseException();
       }
@@ -518,25 +530,6 @@ namespace TestTool
       return len;
     }
 
-    public struct BlobTask
-    {
-      public int pbfBufferOfs;
-      public int blobIndex;
-      public OsmBlob blob;
-      public int outputOfs;
-      public BlobTask(int pbfBufferOfs, int blobIndex, OsmBlob blob, int outputOfs)
-      {
-        this.pbfBufferOfs = pbfBufferOfs;
-        this.blobIndex = blobIndex;
-        this.blob = blob;
-        this.outputOfs = outputOfs;
-      }
-      public override string ToString()
-      {
-        return new { pbfBufferOfs, outputOfs, blobIndex, blob }.ToString();
-      }
-    }
-
     static void Main(string[] args)
     {
       //BufferTest();
@@ -545,14 +538,17 @@ namespace TestTool
       for (int i = 0; i < 32 && !File.Exists(path); i++) path = "../" + path;
       if (!File.Exists(path)) throw new FileNotFoundException(path.TrimStart('.', '/'));
 
+      Console.WriteLine();
       using (var test = new FastPbfReader(path, 256 * 1048576))
       {
-        #region # // --- Index einlesen ---
+        #region # // --- Basis-Index einlesen und erstellen (sofern noch nicht vorhanden) ---
         var blobs = new List<OsmBlob>();
 
         if (File.Exists(path + ".index.tsv") && new FileInfo(path + ".index.tsv").LastWriteTimeUtc == new FileInfo(path).LastWriteTimeUtc)
         {
+          Console.Write("  read index...");
           blobs.AddRange(File.ReadLines(path + ".index.tsv").Select(OsmBlob.FromTsv));
+          Console.WriteLine(" ok.");
         }
         else
         {
@@ -579,14 +575,15 @@ namespace TestTool
         }
 
         Console.WriteLine();
-        Console.WriteLine("            Blocks: {0,15:N0}", blobs.Count);
-        Console.WriteLine("    PBF-Compressed: {0,15:N0} Bytes", blobs.Sum(blob => (long)blob.blobLen));
+        Console.WriteLine("  PBF-Blocks      : {0,15:N0}", blobs.Count);
+        Console.WriteLine("  PBF-Compressed  : {0,15:N0} Bytes", blobs.Sum(blob => (long)blob.blobLen));
         Console.WriteLine("  PBF-Uncompressed: {0,15:N0} Bytes", blobs.Sum(blob => (long)(blob.blobLen - blob.zlibLen + blob.rawSize)));
         Console.WriteLine();
         #endregion
 
+        #region # // --- Daten einlesen und Details in den Index schreiben ---
         test.RandomBuffering = false;
-        var outputBuf = new byte[640 * 1048576];
+        var outputBuf = new byte[test.buffer.Length * 4];
         for (int blobIndex = 0; blobIndex < blobs.Count; )
         {
           if (blobs[blobIndex].scanned)
@@ -594,10 +591,11 @@ namespace TestTool
             blobIndex++;
             continue;
           }
-          var todo = new List<BlobTask>();
+          var blobTasks = new List<BlobTask>();
           var blobFirst = blobs[blobIndex];
-          Console.WriteLine("read pos {0:N0}", blobFirst.pbfOfs);
+          Console.Write("  read PBF: {0:N0} / {1:N0} ...", blobFirst.pbfOfs, test.pbfSize);
           test.PrepareBuffer(blobFirst.pbfOfs + blobFirst.zlibOfs, blobFirst.zlibLen);
+          Console.WriteLine(" ok.");
 
           int outputOfs = 0;
           for (int i = blobIndex; i < blobs.Count && outputOfs + blobs[i].rawSize < outputBuf.Length; i++)
@@ -605,7 +603,7 @@ namespace TestTool
             if (blobs[i].scanned) continue;
             int ofs = test.CheckFastBuffer(blobs[i].pbfOfs + blobs[i].zlibOfs, blobs[i].zlibLen);
             if (ofs < 0) break;
-            todo.Add(new BlobTask(ofs, i, blobs[i], outputOfs));
+            blobTasks.Add(new BlobTask(ofs, i, blobs[i], outputOfs));
             outputOfs += blobs[i].rawSize + 1;
           }
 
@@ -635,29 +633,47 @@ namespace TestTool
               lock (outputBuf)
               {
                 blobIndex++;
-                if (task.blob.minNodeId > 0 && task.blob.maxNodeId > 0)
+                Console.Write("  decoded: {0:N0} / {1:N0}", task.blobIndex, blobs.Count);
+                if (task.blob.minNodeId > 0)
                 {
-                  Console.WriteLine("decoded: {0:N0} / {1:N0} - ({2:N0} - {3:N0})", task.blobIndex, blobs.Count, task.blob.minNodeId, task.blob.maxNodeId);
+                  Console.Write(" - Nodes: {0:N0} ({1:N0} - {2:N0})", task.blob.nodeCount, task.blob.minNodeId, task.blob.maxNodeId);
                 }
-                else
+                if (task.blob.minWayId > 0)
                 {
-                  Console.WriteLine("decoded: {0:N0} / {1:N0}", task.blobIndex, blobs.Count);
+                  Console.Write(" - Ways: {0:N0} ({1:N0} - {2:N0})", task.blob.wayCount, task.blob.minWayId, task.blob.maxWayId);
                 }
+                if (task.blob.minRelationId > 0)
+                {
+                  Console.Write(" - Relations: {0:N0} ({1:N0} - {2:N0})", task.blob.relationCount, task.blob.minRelationId, task.blob.maxRelationId);
+                }
+                Console.WriteLine();
               }
             }
             if (len != task.blob.rawSize) throw new PbfParseException();
           };
 
-          //foreach (var task in todo) decodeFunc(task);
-          //Parallel.ForEach(todo, decodeFunc);
-          int count = todo.SelectParallelEnumerable(task => { decodeFunc(task); return true; }).Count();
-          File.WriteAllLines(path + ".index.tsv", blobs.Select(x => x.ToTsv()));
-          new FileInfo(path + ".index.tsv").LastWriteTimeUtc = new FileInfo(path).LastWriteTimeUtc;
+          //foreach (var task in blobTasks) decodeFunc(task); int results = blobTasks.Count;
+          int results = blobTasks.SelectParallelEnumerable(task => { decodeFunc(task); return true; }).Count();
+
+          if (results > 0)
+          {
+            Console.Write("  write index...");
+            File.WriteAllLines(path + ".index.tsv", blobs.Select(x => x.ToTsv()));
+            new FileInfo(path + ".index.tsv").LastWriteTimeUtc = new FileInfo(path).LastWriteTimeUtc;
+            Console.WriteLine(" ok.");
+          }
+          Console.WriteLine();
           if (Console.KeyAvailable && Console.ReadKey().Key == ConsoleKey.Escape)
           {
-            break;
+            return;
           }
         }
+        Console.WriteLine("  Nodes-Total     : {0,15:N0}", blobs.Sum(x => x.nodeCount));
+        Console.WriteLine("  Ways-Total      : {0,15:N0}", blobs.Sum(x => x.wayCount));
+        Console.WriteLine("  Realtions-Total : {0,15:N0}", blobs.Sum(x => x.relationCount));
+        Console.WriteLine();
+        #endregion
+
       }
     }
   }
