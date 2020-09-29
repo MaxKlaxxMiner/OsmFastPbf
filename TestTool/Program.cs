@@ -503,8 +503,12 @@ namespace TestTool
       len += ProtoBuf.DecodeStringTable(buf, ofs + len, out stringTable);
 
       // --- repeated PrimitiveGroup primitivegroup = 2; ---
-      blob.minNodeId = 0;
-      blob.maxNodeId = 0;
+      if (blob != null)
+      {
+        blob.minNodeId = 0;
+        blob.maxNodeId = 0;
+        blob.scanned = true;
+      }
       while (buf[ofs + len] == (2 << 3 | 2))
       {
         len++;
@@ -517,7 +521,6 @@ namespace TestTool
         }
         if (len != endLen) throw new PbfParseException();
       }
-      blob.scanned = true;
 
       //todo: optional int32 granularity = 17 [default=100];
 
@@ -539,7 +542,7 @@ namespace TestTool
       if (!File.Exists(path)) throw new FileNotFoundException(path.TrimStart('.', '/'));
 
       Console.WriteLine();
-      using (var test = new FastPbfReader(path, 256 * 1048576))
+      using (var pbfReader = new FastPbfReader(path, 256 * 1048576))
       {
         #region # // --- Basis-Index einlesen und erstellen (sofern noch nicht vorhanden) ---
         var blobs = new List<OsmBlob>();
@@ -552,7 +555,7 @@ namespace TestTool
         }
         else
         {
-          test.RandomBuffering = true;
+          pbfReader.RandomBuffering = true;
 
           long pos = 0;
           int tim = 0;
@@ -562,15 +565,15 @@ namespace TestTool
             if (tim != Environment.TickCount)
             {
               tim = Environment.TickCount;
-              Console.WriteLine("{0:N0} / {1:N0}", pos, test.pbfSize);
+              Console.WriteLine("{0:N0} / {1:N0}", pos, pbfReader.pbfSize);
             }
-            int ofs = test.PrepareBuffer(pos, 32);
+            int ofs = pbfReader.PrepareBuffer(pos, 32);
             OsmBlob blob;
-            OsmBlob.DecodeQuick(test.buffer, ofs, out blob);
+            OsmBlob.DecodeQuick(pbfReader.buffer, ofs, out blob);
             blob.pbfOfs = pos;
             pos += blob.blobLen;
             blobs.Add(blob);
-            if (pos >= test.pbfSize) break;
+            if (pos >= pbfReader.pbfSize) break;
           }
         }
 
@@ -582,8 +585,8 @@ namespace TestTool
         #endregion
 
         #region # // --- Daten einlesen und Details in den Index schreiben ---
-        test.RandomBuffering = false;
-        var outputBuf = new byte[test.buffer.Length * 4];
+        pbfReader.RandomBuffering = false;
+        var outputBuf = new byte[pbfReader.buffer.Length * 4];
         for (int blobIndex = 0; blobIndex < blobs.Count; )
         {
           if (blobs[blobIndex].scanned)
@@ -593,24 +596,24 @@ namespace TestTool
           }
           var blobTasks = new List<BlobTask>();
           var blobFirst = blobs[blobIndex];
-          Console.Write("  read PBF: {0:N0} / {1:N0} ...", blobFirst.pbfOfs, test.pbfSize);
-          test.PrepareBuffer(blobFirst.pbfOfs + blobFirst.zlibOfs, blobFirst.zlibLen);
+          Console.Write("  read PBF: {0:N0} / {1:N0} ...", blobFirst.pbfOfs, pbfReader.pbfSize);
+          pbfReader.PrepareBuffer(blobFirst.pbfOfs + blobFirst.zlibOfs, blobFirst.zlibLen);
           Console.WriteLine(" ok.");
 
           int outputOfs = 0;
           for (int i = blobIndex; i < blobs.Count && outputOfs + blobs[i].rawSize < outputBuf.Length; i++)
           {
             if (blobs[i].scanned) continue;
-            int ofs = test.CheckFastBuffer(blobs[i].pbfOfs + blobs[i].zlibOfs, blobs[i].zlibLen);
+            int ofs = pbfReader.CheckFastBuffer(blobs[i].pbfOfs + blobs[i].zlibOfs, blobs[i].zlibLen);
             if (ofs < 0) break;
             blobTasks.Add(new BlobTask(ofs, i, blobs[i], outputOfs));
             outputOfs += blobs[i].rawSize + 1;
           }
 
-          Action<BlobTask> decodeFunc = task =>
+          Action<BlobTask> scanFunc = task =>
           {
             // --- entpacken ---
-            int bytes = ProtoBuf.FastInflate(test.buffer, task.pbfBufferOfs, task.blob.zlibLen, outputBuf, task.outputOfs);
+            int bytes = ProtoBuf.FastInflate(pbfReader.buffer, task.pbfBufferOfs, task.blob.zlibLen, outputBuf, task.outputOfs);
             if (bytes != task.blob.rawSize) throw new PbfParseException();
             outputBuf[task.outputOfs + bytes] = 0;
 
@@ -652,8 +655,8 @@ namespace TestTool
             if (len != task.blob.rawSize) throw new PbfParseException();
           };
 
-          //foreach (var task in blobTasks) decodeFunc(task); int results = blobTasks.Count;
-          int results = blobTasks.SelectParallelEnumerable(task => { decodeFunc(task); return true; }).Count();
+          //foreach (var task in blobTasks) scanFunc(task); int results = blobTasks.Count;
+          int results = blobTasks.SelectParallelEnumerable(task => { scanFunc(task); return true; }).Count();
 
           if (results > 0)
           {
@@ -673,6 +676,25 @@ namespace TestTool
         Console.WriteLine("  Realtions-Total : {0,15:N0}", blobs.Sum(x => x.relationCount));
         Console.WriteLine();
         #endregion
+
+        var firstWays = blobs.First(x => x.wayCount > 0);
+        {
+          var blob = firstWays;
+
+          // --- laden ---
+          int pbfOfs = pbfReader.PrepareBuffer(blob.pbfOfs + blob.zlibOfs, blob.zlibLen);
+
+          // --- entpacken ---
+          int bytes = ProtoBuf.FastInflate(pbfReader.buffer, pbfOfs, blob.zlibLen, outputBuf, 0);
+          if (bytes != blob.rawSize) throw new PbfParseException();
+          outputBuf[bytes] = 0;
+
+          // --- decoden ---
+          int len = DecodePrimitiveBlock(outputBuf, 0);
+          if (len != blob.rawSize) throw new PbfParseException();
+
+
+        }
 
       }
     }
