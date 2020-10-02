@@ -42,7 +42,7 @@ namespace OsmFastPbf.zlibTuned.FastInflater
     /// <param name="ziel">Adresse auf die Zieldaten</param>
     /// <param name="bytes">Anzahl der Bytes, welche kopiert werden sollen</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static void CopyBytes(byte* quelle, byte* ziel, int bytes)
+    public static void CopyBytes(byte* quelle, byte* ziel, int bytes)
     {
       // --- 64-Bit Modus (als longs kopieren) ---
       int bis = bytes >> 3;

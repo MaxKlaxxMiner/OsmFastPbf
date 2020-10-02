@@ -535,7 +535,8 @@ namespace TestTool
 
     static void Main(string[] args)
     {
-      //BufferTest();
+      //BufferTest(); return;
+      HgtTest(); return;
 
       string path = "planet-latest.osm.pbf";
       for (int i = 0; i < 32 && !File.Exists(path); i++) path = "../" + path;
