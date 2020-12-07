@@ -5,6 +5,7 @@ using System.Text;
 using OsmFastPbf.zlibTuned.FastInflater;
 // ReSharper disable MemberCanBePrivate.Global
 // ReSharper disable UnusedMember.Global
+// ReSharper disable UselessBinaryOperation
 
 namespace OsmFastPbf.Helper
 {
@@ -82,11 +83,27 @@ namespace OsmFastPbf.Helper
     }
 
     #region # // --- Read Packet ---
+    public static int SkipStringTable(byte[] buf, int ofs)
+    {
+      int len = 0;
+      ulong dataLen;
+      len += ReadVarInt(buf, ofs + len, out dataLen);
+      int endLen = len + (int)dataLen;
+
+      while (len < endLen)
+      {
+        if (buf[ofs + len++] != (1 << 3 | 2)) throw new PbfParseException();
+        len += SkipString(buf, ofs + len);
+      }
+      if (len != endLen) throw new PbfParseException();
+      return len;
+    }
+
     public static int DecodeStringTable(byte[] buf, int ofs, out string[] val)
     {
       int len = 0;
       ulong dataLen;
-      len += ProtoBuf.ReadVarInt(buf, ofs + len, out dataLen);
+      len += ReadVarInt(buf, ofs + len, out dataLen);
       int endLen = len + (int)dataLen;
 
       var stringTable = new List<string>();
@@ -94,7 +111,7 @@ namespace OsmFastPbf.Helper
       {
         string tmp;
         if (buf[ofs + len++] != (1 << 3 | 2)) throw new PbfParseException();
-        len += ProtoBuf.ReadString(buf, ofs + len, out tmp);
+        len += ReadString(buf, ofs + len, out tmp);
         stringTable.Add(tmp);
       }
       if (len != endLen) throw new PbfParseException();
@@ -106,7 +123,7 @@ namespace OsmFastPbf.Helper
     {
       int len = 0;
       ulong dataLen;
-      len += ProtoBuf.ReadVarInt(buf, ofs + len, out dataLen);
+      len += ReadVarInt(buf, ofs + len, out dataLen);
       int endLen = len + (int)dataLen;
 
       var result = new int[dataLen];
@@ -115,7 +132,7 @@ namespace OsmFastPbf.Helper
       while (len < endLen)
       {
         ulong tmp;
-        len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
+        len += ReadVarInt(buf, ofs + len, out tmp);
         result[resultLen++] = (int)(uint)tmp;
       }
 
@@ -131,14 +148,14 @@ namespace OsmFastPbf.Helper
     {
       int len = 0;
       ulong dataLen;
-      len += ProtoBuf.ReadVarInt(buf, ofs + len, out dataLen);
+      len += ReadVarInt(buf, ofs + len, out dataLen);
       int endLen = len + (int)dataLen;
 
       var result = new int[itemCount];
       for (int i = 0; i < result.Length; i++)
       {
         ulong tmp;
-        len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
+        len += ReadVarInt(buf, ofs + len, out tmp);
         result[i] = (int)(uint)tmp;
       }
       val = result;
@@ -152,7 +169,7 @@ namespace OsmFastPbf.Helper
     {
       int len = 0;
       ulong dataLen;
-      len += ProtoBuf.ReadVarInt(buf, ofs + len, out dataLen);
+      len += ReadVarInt(buf, ofs + len, out dataLen);
       int endLen = len + (int)dataLen;
 
       var result = new uint[dataLen];
@@ -161,7 +178,7 @@ namespace OsmFastPbf.Helper
       while (len < endLen)
       {
         ulong tmp;
-        len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
+        len += ReadVarInt(buf, ofs + len, out tmp);
         result[resultLen++] = (uint)tmp;
       }
 
@@ -177,20 +194,20 @@ namespace OsmFastPbf.Helper
     {
       int len = 0;
       ulong dataLen;
-      len += ProtoBuf.ReadVarInt(buf, ofs + len, out dataLen);
+      len += ReadVarInt(buf, ofs + len, out dataLen);
       int endLen = len + (int)dataLen;
 
       var result = new int[dataLen];
 
       ulong tmp;
-      len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
-      result[0] = ProtoBuf.SignedInt32((uint)tmp);
+      len += ReadVarInt(buf, ofs + len, out tmp);
+      result[0] = SignedInt32((uint)tmp);
 
       int resultLen;
       for (resultLen = 1; resultLen < result.Length && len < endLen; resultLen++)
       {
-        len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
-        result[resultLen] = ProtoBuf.SignedInt32((uint)tmp) + result[resultLen - 1];
+        len += ReadVarInt(buf, ofs + len, out tmp);
+        result[resultLen] = SignedInt32((uint)tmp) + result[resultLen - 1];
       }
 
       Array.Resize(ref result, resultLen);
@@ -205,19 +222,19 @@ namespace OsmFastPbf.Helper
     {
       int len = 0;
       ulong dataLen;
-      len += ProtoBuf.ReadVarInt(buf, ofs + len, out dataLen);
+      len += ReadVarInt(buf, ofs + len, out dataLen);
       int endLen = len + (int)dataLen;
 
       var result = new int[itemCount];
 
       ulong tmp;
-      len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
-      result[0] = ProtoBuf.SignedInt32((uint)tmp);
+      len += ReadVarInt(buf, ofs + len, out tmp);
+      result[0] = SignedInt32((uint)tmp);
 
       for (int i = 1; i < result.Length && len < endLen; i++)
       {
-        len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
-        result[i] = ProtoBuf.SignedInt32((uint)tmp) + result[i - 1];
+        len += ReadVarInt(buf, ofs + len, out tmp);
+        result[i] = SignedInt32((uint)tmp) + result[i - 1];
       }
 
       val = result;
@@ -231,20 +248,20 @@ namespace OsmFastPbf.Helper
     {
       int len = 0;
       ulong dataLen;
-      len += ProtoBuf.ReadVarInt(buf, ofs + len, out dataLen);
+      len += ReadVarInt(buf, ofs + len, out dataLen);
       int endLen = len + (int)dataLen;
 
       var result = new long[dataLen];
 
       ulong tmp;
-      len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
-      result[0] = ProtoBuf.SignedInt64(tmp);
+      len += ReadVarInt(buf, ofs + len, out tmp);
+      result[0] = SignedInt64(tmp);
 
       int resultLen;
       for (resultLen = 1; resultLen < result.Length && len < endLen; resultLen++)
       {
-        len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
-        result[resultLen] = ProtoBuf.SignedInt64(tmp) + result[resultLen - 1];
+        len += ReadVarInt(buf, ofs + len, out tmp);
+        result[resultLen] = SignedInt64(tmp) + result[resultLen - 1];
       }
 
       Array.Resize(ref result, resultLen);
@@ -259,19 +276,19 @@ namespace OsmFastPbf.Helper
     {
       int len = 0;
       ulong dataLen;
-      len += ProtoBuf.ReadVarInt(buf, ofs + len, out dataLen);
+      len += ReadVarInt(buf, ofs + len, out dataLen);
       int endLen = len + (int)dataLen;
 
       var result = new long[itemCount];
 
       ulong tmp;
-      len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
-      result[0] = ProtoBuf.SignedInt64(tmp);
+      len += ReadVarInt(buf, ofs + len, out tmp);
+      result[0] = SignedInt64(tmp);
 
       for (int i = 1; i < result.Length && len < endLen; i++)
       {
-        len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
-        result[i] = ProtoBuf.SignedInt64(tmp) + result[i - 1];
+        len += ReadVarInt(buf, ofs + len, out tmp);
+        result[i] = SignedInt64(tmp) + result[i - 1];
       }
 
       val = result;
@@ -282,6 +299,21 @@ namespace OsmFastPbf.Helper
     }
 
     #endregion
+
+    /// <summary>
+    /// überspringt eine Zeichenfolge
+    /// </summary>
+    /// <param name="buf">Buffer, woraus der Wert gelesen werden soll</param>
+    /// <param name="ofs">Startposition innerhalb des Buffers</param>
+    /// <returns>Anzahl der gelesenen Bytes</returns>
+    public static int SkipString(byte[] buf, int ofs)
+    {
+      int len = 0;
+      ulong dataLen;
+      len += ReadVarInt(buf, ofs + len, out dataLen);
+      len += (int)dataLen;
+      return len;
+    }
 
     /// <summary>
     /// liest eine Zeichenfolge ein
