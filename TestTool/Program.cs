@@ -25,7 +25,7 @@ namespace TestTool
       //BufferTest(); return;
       //HgtTest(); return;
 
-      var index = PbfFastScan.ReadIndex(PbfPath);
+      var index = PbfFastScan.ReadIndex(PbfPath, false);
 
       using (var pbfReader = new FastPbfReader(PbfPath, 256 * 1048576))
       {

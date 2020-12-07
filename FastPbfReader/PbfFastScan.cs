@@ -531,9 +531,9 @@ namespace OsmFastPbf
       return len;
     }
 
-    public static List<OsmBlob> ReadIndex(string path)
+    public static List<OsmBlob> ReadIndex(string path, bool console = true)
     {
-      Console.WriteLine();
+      if (console) Console.WriteLine();
       using (var pbfReader = new FastPbfReader(path, 256 * 1048576))
       {
         #region # // --- Basis-Index einlesen und erstellen (sofern noch nicht vorhanden) ---
@@ -541,12 +541,13 @@ namespace OsmFastPbf
 
         if (File.Exists(path + ".index.tsv") && new FileInfo(path + ".index.tsv").LastWriteTimeUtc == new FileInfo(path).LastWriteTimeUtc)
         {
-          Console.Write("  read index...");
+          if (console) Console.Write("  read index...");
           blobs.AddRange(File.ReadLines(path + ".index.tsv").Select(OsmBlob.FromTsv));
-          Console.WriteLine(" ok. ({0:N0} Blocks)", blobs.Count);
+          if (console) Console.WriteLine(" ok. ({0:N0} Blocks)", blobs.Count);
         }
         else
         {
+          console = true;
           pbfReader.RandomBuffering = true;
 
           long pos = 0;
@@ -569,11 +570,14 @@ namespace OsmFastPbf
           }
         }
 
-        Console.WriteLine();
-        Console.WriteLine("  PBF-Blocks      : {0,15:N0}", blobs.Count);
-        Console.WriteLine("  PBF-Compressed  : {0,15:N0} Bytes", blobs.Sum(blob => (long)blob.blobLen));
-        Console.WriteLine("  PBF-Uncompressed: {0,15:N0} Bytes", blobs.Sum(blob => (long)(blob.blobLen - blob.zlibLen + blob.rawSize)));
-        Console.WriteLine();
+        if (console)
+        {
+          Console.WriteLine();
+          Console.WriteLine("  PBF-Blocks      : {0,15:N0}", blobs.Count);
+          Console.WriteLine("  PBF-Compressed  : {0,15:N0} Bytes", blobs.Sum(blob => (long)blob.blobLen));
+          Console.WriteLine("  PBF-Uncompressed: {0,15:N0} Bytes", blobs.Sum(blob => (long)(blob.blobLen - blob.zlibLen + blob.rawSize)));
+          Console.WriteLine();
+        }
         #endregion
 
         #region # // --- Daten einlesen und Details in den Index schreiben ---
@@ -664,10 +668,13 @@ namespace OsmFastPbf
             return null;
           }
         }
-        Console.WriteLine("  Nodes-Total     : {0,15:N0}", blobs.Sum(x => x.nodeCount));
-        Console.WriteLine("  Ways-Total      : {0,15:N0}", blobs.Sum(x => x.wayCount));
-        Console.WriteLine("  Realtions-Total : {0,15:N0}", blobs.Sum(x => x.relationCount));
-        Console.WriteLine();
+        if (console)
+        {
+          Console.WriteLine("  Nodes-Total     : {0,15:N0}", blobs.Sum(x => x.nodeCount));
+          Console.WriteLine("  Ways-Total      : {0,15:N0}", blobs.Sum(x => x.wayCount));
+          Console.WriteLine("  Realtions-Total : {0,15:N0}", blobs.Sum(x => x.relationCount));
+          Console.WriteLine();
+        }
         #endregion
 
         return blobs;
