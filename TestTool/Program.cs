@@ -43,7 +43,26 @@ namespace TestTool
           outputBuf[bytes] = 0;
 
           // --- decoden ---
-          int len = PbfFastScan.DecodePrimitiveBlock(outputBuf, 0);
+          int len = PbfFastWays.DecodePrimitiveBlock(outputBuf, 0);
+          if (len != blob.rawSize) throw new PbfParseException();
+        }
+
+        long testNodeID = 200511; // 52.5557962, -1.8267481 (blackadder)
+        var firstWayNodes = index.First(x => x.nodeCount > 0 && testNodeID >= x.minNodeId && testNodeID <= x.maxNodeId);
+        {
+          var blob = firstWayNodes;
+
+          // --- laden ---
+          int pbfOfs = pbfReader.PrepareBuffer(blob.pbfOfs + blob.zlibOfs, blob.zlibLen);
+
+          // --- entpacken ---
+          int bytes = ProtoBuf.FastInflate(pbfReader.buffer, pbfOfs, blob.zlibLen, outputBuf, 0);
+          if (bytes != blob.rawSize) throw new PbfParseException();
+          outputBuf[bytes] = 0;
+
+          // --- decoden ---
+          GpsNode[] nodes;
+          int len = PbfFastNodes.DecodePrimitiveBlock(outputBuf, 0, blob, out nodes);
           if (len != blob.rawSize) throw new PbfParseException();
         }
       }

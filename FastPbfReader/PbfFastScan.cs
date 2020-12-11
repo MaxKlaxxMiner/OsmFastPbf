@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using OsmFastPbf.Helper;
 // ReSharper disable UselessBinaryOperation
+// ReSharper disable MemberCanBePrivate.Global
 
 namespace OsmFastPbf
 {

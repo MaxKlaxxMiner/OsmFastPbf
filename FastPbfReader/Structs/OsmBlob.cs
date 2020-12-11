@@ -186,6 +186,18 @@ namespace OsmFastPbf
     /// <returns>lesbare Zeichenkette</returns>
     public override string ToString()
     {
+      if (nodeCount > 0)
+      {
+        return new { pbfOfs, blobLen, rawSize, zlibOfs, zlibLen, nodeCount, wayCount, relationCount, minNodeId, maxNodeId }.ToString();
+      }
+      if (wayCount > 0)
+      {
+        return new { pbfOfs, blobLen, rawSize, zlibOfs, zlibLen, nodeCount, wayCount, relationCount, minWayId, maxWayId }.ToString();
+      }
+      if (relationCount > 0)
+      {
+        return new { pbfOfs, blobLen, rawSize, zlibOfs, zlibLen, nodeCount, wayCount, relationCount, minRelationId, maxRelationId }.ToString();
+      }
       return new { pbfOfs, blobLen, rawSize, zlibOfs, zlibLen, nodeCount, wayCount, relationCount }.ToString();
     }
 

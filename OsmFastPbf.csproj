@@ -15,7 +15,7 @@
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
-    <Optimize>true</Optimize>
+    <Optimize>false</Optimize>
     <OutputPath>bin\Debug\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
@@ -43,11 +43,15 @@
   <ItemGroup>
     <Compile Include="FastPbfReader\FastPbfReader.cs" />
     <Compile Include="FastPbfReader\Helper\LinqHelper.cs" />
+    <Compile Include="FastPbfReader\PbfFast.cs" />
+    <Compile Include="FastPbfReader\PbfFastNodes.cs" />
+    <Compile Include="FastPbfReader\PbfFastWays.cs" />
     <Compile Include="FastPbfReader\PbfFastScan.cs" />
     <Compile Include="FastPbfReader\Structs\BlobTask.cs" />
     <Compile Include="FastPbfReader\Structs\HeaderBBox.cs" />
     <Compile Include="FastPbfReader\Structs\HeaderBlock.cs" />
     <Compile Include="FastPbfReader\PbfParseException.cs" />
+    <Compile Include="FastPbfReader\Structs\GpsNode.cs" />
     <Compile Include="FastPbfReader\Structs\OsmBlob.cs" />
     <Compile Include="FastPbfReader\Helper\ProtoBuf.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
