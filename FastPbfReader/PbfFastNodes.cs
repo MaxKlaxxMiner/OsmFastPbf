@@ -163,7 +163,7 @@ namespace OsmFastPbf
       gpsNodes = new GpsNode[id.Length];
       for (int i = 0; i < gpsNodes.Length; i++)
       {
-        gpsNodes[i] = new GpsNode(id[i], lat[i], lon[i]);
+        gpsNodes[i] = new GpsNode(id[i], (int)lat[i], (int)lon[i]);
       }
 
       return len;

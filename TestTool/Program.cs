@@ -1,4 +1,6 @@
-﻿using System.IO;
+﻿// ReSharper disable RedundantUsingDirective
+using System;
+using System.IO;
 using System.Linq;
 using OsmFastPbf;
 using OsmFastPbf.Helper;
@@ -26,31 +28,34 @@ namespace TestTool
       //HgtTest(); return;
 
       var index = PbfFastScan.ReadIndex(PbfPath, false);
+      var nodeIndex = index.Where(x => x.nodeCount > 0).ToArray();
+      var wayIndex = index.Where(x => x.wayCount > 0).ToArray();
+      var relationIndex = index.Where(x => x.relationCount > 0).ToArray();
 
       using (var pbfReader = new FastPbfReader(PbfPath, 256 * 1048576))
       {
         var outputBuf = new byte[pbfReader.buffer.Length * 4];
-        var firstWays = index.First(x => x.wayCount > 0);
+
+        //var firstWays = index.First(x => x.wayCount > 0);
+        //{
+        //  var blob = firstWays;
+
+        //  // --- laden ---
+        //  int pbfOfs = pbfReader.PrepareBuffer(blob.pbfOfs + blob.zlibOfs, blob.zlibLen);
+
+        //  // --- entpacken ---
+        //  int bytes = ProtoBuf.FastInflate(pbfReader.buffer, pbfOfs, blob.zlibLen, outputBuf, 0);
+        //  if (bytes != blob.rawSize) throw new PbfParseException();
+        //  outputBuf[bytes] = 0;
+
+        //  // --- decoden ---
+        //  int len = PbfFastWays.DecodePrimitiveBlock(outputBuf, 0);
+        //  if (len != blob.rawSize) throw new PbfParseException();
+        //}
+
+        long testNodeID = 240109189; // Berlin - 52.5170365, 13.3888599 - https://www.openstreetmap.org/node/240109189
         {
-          var blob = firstWays;
-
-          // --- laden ---
-          int pbfOfs = pbfReader.PrepareBuffer(blob.pbfOfs + blob.zlibOfs, blob.zlibLen);
-
-          // --- entpacken ---
-          int bytes = ProtoBuf.FastInflate(pbfReader.buffer, pbfOfs, blob.zlibLen, outputBuf, 0);
-          if (bytes != blob.rawSize) throw new PbfParseException();
-          outputBuf[bytes] = 0;
-
-          // --- decoden ---
-          int len = PbfFastWays.DecodePrimitiveBlock(outputBuf, 0);
-          if (len != blob.rawSize) throw new PbfParseException();
-        }
-
-        long testNodeID = 200511; // 52.5557962, -1.8267481 (blackadder)
-        var firstWayNodes = index.First(x => x.nodeCount > 0 && testNodeID >= x.minNodeId && testNodeID <= x.maxNodeId);
-        {
-          var blob = firstWayNodes;
+          var blob = nodeIndex.BinarySearchSingle(x => testNodeID >= x.minNodeId  && testNodeID <= x.maxNodeId ? 0L : x.minNodeId - testNodeID);
 
           // --- laden ---
           int pbfOfs = pbfReader.PrepareBuffer(blob.pbfOfs + blob.zlibOfs, blob.zlibLen);
@@ -64,6 +69,9 @@ namespace TestTool
           GpsNode[] nodes;
           int len = PbfFastNodes.DecodePrimitiveBlock(outputBuf, 0, blob, out nodes);
           if (len != blob.rawSize) throw new PbfParseException();
+
+          var findNode = nodes.BinarySearchSingle(x => x.id - testNodeID); // fast (sorted) version
+          // findNode = { id = 240109189, Latitude = 52,5170365, Longitude = 13,3888599 }
         }
       }
     }

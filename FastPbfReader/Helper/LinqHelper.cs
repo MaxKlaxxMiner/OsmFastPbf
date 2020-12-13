@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Management;
 using System.Threading;
+// ReSharper disable UnusedMember.Global
 
 namespace OsmFastPbf.Helper
 {
@@ -69,6 +69,77 @@ namespace OsmFastPbf.Helper
         }
         Thread.Sleep(1);
       }
+    }
+
+    /// <summary>
+    /// führt eine binäre Suche im sortierten Array durch und gibt alle passenden Datensätze zurück
+    /// </summary>
+    /// <typeparam name="T">Typ im Array</typeparam>
+    /// <param name="array">Array mit den vorsortierten Datensätzen</param>
+    /// <param name="compareMethod">Vergleichsmethode zum Finden der Datensätze (muss mit der Sortierung kompatibel sein)</param>
+    /// <returns>IEnumerable der gefundenen Datensätze</returns>
+    public static IEnumerable<T> BinarySearch<T>(this T[] array, Func<T, int> compareMethod)
+    {
+      int start = 0;
+      int end = array.Length;
+      if (end == 0) yield break;
+      do
+      {
+        var center = (start + end) >> 1;
+        if (compareMethod(array[center]) > 0) end = center; else start = center;
+      } while (end - start > 1);
+
+      // Anfang suchen
+      while (start > 0 && compareMethod(array[start - 1]) == 0) start--;
+
+      // alle zutreffenden Datensätze zurück geben
+      while (start < array.Length && compareMethod(array[start]) == 0) yield return array[start++];
+    }
+
+    /// <summary>
+    /// führt eine binäre Suche im sortierten Array durch und gibt einen einzelnen passenden Datensatz zurück
+    /// </summary>
+    /// <typeparam name="T">Typ im Array</typeparam>
+    /// <param name="array">Array mit den vorsortierten Datensätzen</param>
+    /// <param name="compareMethod">Vergleichsmethode zum Finden des Datensatzes (muss mit der Sortierung kompatibel sein)</param>
+    /// <returns>gefundener Datensatz oder null, wenn nicht gefunden</returns>
+    public static T BinarySearchSingle<T>(this T[] array, Func<T, int> compareMethod)
+    {
+      int start = 0;
+      int end = array.Length;
+      if (end == 0) return default(T);
+      do
+      {
+        var center = (start + end) >> 1;
+        if (compareMethod(array[center]) > 0) end = center; else start = center;
+      } while (end - start > 1);
+
+      if (compareMethod(array[start]) == 0) return array[start];
+      if (start > 0 && compareMethod(array[start - 1]) == 0) return array[start];
+      return default(T);
+    }
+
+    /// <summary>
+    /// führt eine binäre Suche im sortierten Array durch und gibt einen einzelnen passenden Datensatz zurück
+    /// </summary>
+    /// <typeparam name="T">Typ im Array</typeparam>
+    /// <param name="array">Array mit den vorsortierten Datensätzen</param>
+    /// <param name="compareMethod">Vergleichsmethode zum Finden des Datensatzes (muss mit der Sortierung kompatibel sein)</param>
+    /// <returns>gefundener Datensatz oder null, wenn nicht gefunden</returns>
+    public static T BinarySearchSingle<T>(this T[] array, Func<T, long> compareMethod)
+    {
+      int start = 0;
+      int end = array.Length;
+      if (end == 0) return default(T);
+      do
+      {
+        var center = (start + end) >> 1;
+        if (compareMethod(array[center]) > 0) end = center; else start = center;
+      } while (end - start > 1);
+
+      if (compareMethod(array[start]) == 0) return array[start];
+      if (start > 0 && compareMethod(array[start - 1]) == 0) return array[start];
+      return default(T);
     }
   }
 }
