@@ -42,7 +42,7 @@ namespace OsmFastPbf.Helper
         for (int bit = 7; ; bit += 7)
         {
           byte b = buf[ofs + len++];
-          val |= (uint)(b & 127) << bit;
+          val |= (ulong)(b & 127) << bit;
           if (b <= 127) break;
         }
       }
