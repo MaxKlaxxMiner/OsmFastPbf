@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using OsmFastPbf.Helper;
 // ReSharper disable UselessBinaryOperation
 
@@ -6,7 +8,7 @@ namespace OsmFastPbf
 {
   public class PbfFastWays
   {
-    static int DecodeWays(byte[] buf, int ofs, out long id)
+    static int DecodeWays(byte[] buf, int ofs, string[] stringTable, out OsmWay way)
     {
       /*****
        * message Way
@@ -29,25 +31,31 @@ namespace OsmFastPbf
 
       // --- required int64 id = 1; ---
       if (buf[ofs + len++] != (1 << 3 | 0)) throw new PbfParseException();
-      ulong tmp;
-      len += ProtoBuf.ReadVarInt(buf, ofs + len, out tmp);
-      id = (long)tmp;
-      uint[] keys;
-      uint[] vals;
-      long[] refs;
+      ulong id;
+      len += ProtoBuf.ReadVarInt(buf, ofs + len, out id);
 
       // --- repeated uint32 keys = 2 [packed = true]; ---
+      int[] keys;
       if (buf[ofs + len] == (2 << 3 | 2))
       {
         len++;
-        len += ProtoBuf.DecodePackedUInt32(buf, ofs + len, out keys);
+        len += ProtoBuf.DecodePackedInt32(buf, ofs + len, out keys);
+      }
+      else
+      {
+        keys = new int[0];
       }
 
       // --- repeated uint32 vals = 3 [packed = true]; ---
+      int[] vals;
       if (buf[ofs + len] == (3 << 3 | 2))
       {
         len++;
-        len += ProtoBuf.DecodePackedUInt32(buf, ofs + len, out vals);
+        len += ProtoBuf.DecodePackedInt32(buf, ofs + len, out vals);
+      }
+      else
+      {
+        vals = new int[0];
       }
 
       // --- optional Info info = 4; ---
@@ -58,18 +66,31 @@ namespace OsmFastPbf
       }
 
       // --- repeated sint64 refs = 8 [packed = true]; // DELTA coded ---
+      long[] refs;
       if (buf[ofs + len] == (8 << 3 | 2))
       {
         len++;
         len += ProtoBuf.DecodePackedSInt64Delta(buf, ofs + len, out refs);
       }
+      else
+      {
+        refs = new long[0];
+      }
 
       if (len != endLen) throw new PbfParseException();
+
+      if (keys.Length != vals.Length) throw new PbfParseException();
+
+      way = new OsmWay(
+        (long)id,
+        Enumerable.Range(0, keys.Length).Select(i => new KeyValuePair<string, string>(stringTable[keys[i]], stringTable[vals[i]])).ToArray(keys.Length),
+        refs
+      );
 
       return len;
     }
 
-    static int DecodePrimitiveGroup(byte[] buf, int ofs)
+    static int DecodePrimitiveGroup(byte[] buf, int ofs, string[] stringTable, out OsmWay way)
     {
       /*****
        * message PrimitiveGroup
@@ -100,8 +121,11 @@ namespace OsmFastPbf
       if (buf[ofs + len] == (3 << 3 | 2))
       {
         len++;
-        long wayId;
-        len += DecodeWays(buf, ofs + len, out wayId);
+        len += DecodeWays(buf, ofs + len, stringTable, out way);
+      }
+      else
+      {
+        throw new NotSupportedException();
       }
 
       // --- repeated Relation relations = 4; ---
@@ -119,7 +143,7 @@ namespace OsmFastPbf
       return len;
     }
 
-    public static int DecodePrimitiveBlock(byte[] buf, int ofs)
+    public static int DecodePrimitiveBlock(byte[] buf, int ofs, OsmBlob blob, out OsmWay[] ways)
     {
       /*****
        * message PrimitiveBlock
@@ -149,6 +173,8 @@ namespace OsmFastPbf
       string[] stringTable;
       len += ProtoBuf.DecodeStringTable(buf, ofs + len, out stringTable);
 
+      ways = new OsmWay[blob.wayCount];
+      int waysIndex = 0;
       // --- repeated PrimitiveGroup primitivegroup = 2; ---
       while (buf[ofs + len] == (2 << 3 | 2))
       {
@@ -158,10 +184,12 @@ namespace OsmFastPbf
         int endLen = len + (int)dataLen;
         while (len < endLen)
         {
-          len += DecodePrimitiveGroup(buf, ofs + len);
+          len += DecodePrimitiveGroup(buf, ofs + len, stringTable, out ways[waysIndex]);
+          waysIndex++;
         }
         if (len != endLen) throw new PbfParseException();
       }
+      if (waysIndex != ways.Length) throw new PbfParseException();
 
       // optional int32 granularity = 17 [default=100];
       // optional int64 lat_offset = 19 [default=0];
