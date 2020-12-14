@@ -1,11 +1,9 @@
-﻿// ReSharper disable UnusedMember.Global
+﻿using System.Collections.Generic;
 // ReSharper disable MemberCanBePrivate.Global
-
-using System.Collections.Generic;
 
 namespace OsmFastPbf
 {
-  public struct GpsNode
+  public struct OsmNode
   {
     public readonly long id;
     public readonly int latCode;
@@ -13,7 +11,7 @@ namespace OsmFastPbf
     public readonly KeyValuePair<string, string>[] values;
     public double Latitude { get { return latCode / 10000000.0; } }
     public double Longitude { get { return lonCode / 10000000.0; } }
-    public GpsNode(long id, int latCode, int lonCode, KeyValuePair<string, string>[] values)
+    public OsmNode(long id, int latCode, int lonCode, KeyValuePair<string, string>[] values)
     {
       this.id = id;
       this.latCode = latCode;
@@ -22,7 +20,7 @@ namespace OsmFastPbf
     }
     public override string ToString()
     {
-      return new { id, Latitude, Longitude, values = "values[" + values.Length + "]" }.ToString();
+      return new { id, Latitude, Longitude, values = "[" + values.Length + "]" }.ToString();
     }
   }
 }

@@ -6,6 +6,7 @@ using OsmFastPbf.Helper;
 // ReSharper disable UselessBinaryOperation
 // ReSharper disable RedundantAssignment
 // ReSharper disable TooWideLocalVariableScope
+// ReSharper disable UnusedMember.Global
 
 namespace OsmFastPbf
 {
@@ -90,7 +91,7 @@ namespace OsmFastPbf
       return len;
     }
 
-    static int DecodeDenseNodes(byte[] buf, int ofs, string[] stringTable, out GpsNode[] gpsNodes)
+    static int DecodeDenseNodes(byte[] buf, int ofs, string[] stringTable, out OsmNode[] gpsNodes)
     {
       /*****
        * message DenseNodes
@@ -178,16 +179,16 @@ namespace OsmFastPbf
         strTmp.Add(li.Count > 0 ? li.ToArray() : empty);
       }
 
-      gpsNodes = new GpsNode[id.Length];
+      gpsNodes = new OsmNode[id.Length];
       for (int i = 0; i < gpsNodes.Length; i++)
       {
-        gpsNodes[i] = new GpsNode(id[i], (int)lat[i], (int)lon[i], strTmp[i]);
+        gpsNodes[i] = new OsmNode(id[i], (int)lat[i], (int)lon[i], strTmp[i]);
       }
 
       return len;
     }
 
-    static int DecodePrimitiveGroup(byte[] buf, int ofs, string[] stringTable, out GpsNode[] nodes)
+    static int DecodePrimitiveGroup(byte[] buf, int ofs, string[] stringTable, out OsmNode[] nodes)
     {
       /*****
        * message PrimitiveGroup
@@ -216,7 +217,7 @@ namespace OsmFastPbf
       }
       else
       {
-        nodes = new GpsNode[0];
+        nodes = new OsmNode[0];
       }
 
       // --- repeated Way ways = 3; ---
@@ -240,7 +241,7 @@ namespace OsmFastPbf
       return len;
     }
 
-    public static int DecodePrimitiveBlock(byte[] buf, int ofs, OsmBlob blob, out GpsNode[] gpsNodes)
+    public static int DecodePrimitiveBlock(byte[] buf, int ofs, OsmBlob blob, out OsmNode[] gpsNodes)
     {
       /*****
        * message PrimitiveBlock
@@ -271,7 +272,7 @@ namespace OsmFastPbf
       len += ProtoBuf.DecodeStringTable(buf, ofs + len, out stringTable);
 
       // --- repeated PrimitiveGroup primitivegroup = 2; ---
-      gpsNodes = new GpsNode[blob.nodeCount];
+      gpsNodes = new OsmNode[blob.nodeCount];
       int outputOfs = 0;
       while (buf[ofs + len] == (2 << 3 | 2))
       {
@@ -281,7 +282,7 @@ namespace OsmFastPbf
         int endLen = len + (int)dataLen;
         while (len < endLen)
         {
-          GpsNode[] nodes;
+          OsmNode[] nodes;
           len += DecodePrimitiveGroup(buf, ofs + len, stringTable, out nodes);
           Array.Copy(nodes, 0, gpsNodes, outputOfs, nodes.Length);
           outputOfs += nodes.Length;
