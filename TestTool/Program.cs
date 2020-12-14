@@ -79,6 +79,7 @@ namespace TestTool
 
           var relation = relations.BinarySearchSingle(x => x.id - testRelationID);
           var values = relation.values.ToDictionary(x => x.Key, x => x.Value);
+          var members = relation.members;
         }
       }
     }

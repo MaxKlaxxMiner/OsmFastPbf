@@ -1,12 +1,11 @@
-﻿
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using OsmFastPbf.Helper;
 // ReSharper disable UselessBinaryOperation
 // ReSharper disable RedundantAssignment
 // ReSharper disable TooWideLocalVariableScope
 // ReSharper disable UnusedMember.Global
+// ReSharper disable UnusedType.Global
 
 namespace OsmFastPbf
 {

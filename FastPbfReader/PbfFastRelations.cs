@@ -123,8 +123,6 @@ namespace OsmFastPbf
       ulong dataLen;
       len += ProtoBuf.ReadVarInt(buf, ofs + len, out dataLen);
       int endLen = len + (int)dataLen;
-      int[] keys;
-      int[] vals;
 
       // --- required int64 id = 1; ---
       if (buf[ofs + len++] != (1 << 3 | 0)) throw new PbfParseException();
@@ -133,6 +131,7 @@ namespace OsmFastPbf
       long id = (long)tmp;
 
       // --- repeated uint32 keys = 2 [packed = true]; ---
+      int[] keys;
       if (buf[ofs + len] == (2 << 3 | 2))
       {
         len++;
@@ -144,6 +143,7 @@ namespace OsmFastPbf
       }
 
       // --- repeated uint32 vals = 3 [packed = true]; ---
+      int[] vals;
       if (buf[ofs + len] == (3 << 3 | 2))
       {
         len++;
@@ -162,33 +162,51 @@ namespace OsmFastPbf
       }
 
       // --- repeated int32 roles_sid = 8 [packed = true]; ---
+      int[] rolesSid;
       if (buf[ofs + len] == (8 << 3 | 2))
       {
         len++;
-        int[] rolesSid;
         len += ProtoBuf.DecodePackedInt32(buf, ofs + len, out rolesSid);
+      }
+      else
+      {
+        rolesSid = new int[0];
       }
 
       // --- repeated sint64 memids = 9 [packed = true]; // DELTA encoded ---
+      long[] memids;
       if (buf[ofs + len] == (9 << 3 | 2))
       {
         len++;
-        long[] memids;
         len += ProtoBuf.DecodePackedSInt64Delta(buf, ofs + len, out memids);
+      }
+      else
+      {
+        memids = new long[0];
       }
 
       // --- repeated MemberType types = 10 [packed = true]; ---
+      int[] types;
       if (buf[ofs + len] == (10 << 3 | 2))
       {
         len++;
-        int[] types;
         len += ProtoBuf.DecodePackedInt32(buf, ofs + len, out types);
+      }
+      else
+      {
+        types = new int[0];
       }
 
       if (len != endLen) throw new PbfParseException();
 
       if (keys.Length != vals.Length) throw new PbfParseException();
-      relation = new OsmRelation(id, Enumerable.Range(0, keys.Length).Select(i => new KeyValuePair<string, string>(stringTable[keys[i]], stringTable[vals[i]])).ToArray());
+      if (rolesSid.Length != memids.Length || rolesSid.Length != types.Length) throw new PbfParseException();
+
+      relation = new OsmRelation(
+        id,
+        Enumerable.Range(0, keys.Length).Select(i => new KeyValuePair<string, string>(stringTable[keys[i]], stringTable[vals[i]])).ToArray(keys.Length),
+        Enumerable.Range(0, memids.Length).Select(i => new OsmRelationMember(memids[i], (MemberType)types[i], stringTable[rolesSid[i]])).ToArray(memids.Length)
+      );
 
       return len;
     }

@@ -15,14 +15,16 @@ namespace OsmFastPbf
   {
     public readonly long id;
     public readonly KeyValuePair<string, string>[] values;
-    public OsmRelation(long id, KeyValuePair<string, string>[] values)
+    public readonly OsmRelationMember[] members;
+    public OsmRelation(long id, KeyValuePair<string, string>[] values, OsmRelationMember[] members)
     {
       this.id = id;
       this.values = values;
+      this.members = members;
     }
     public override string ToString()
     {
-      return new { id, values = "[" + values.Length + "]" }.ToString();
+      return new { id, values = "[" + values.Length + "]", members = "[" + members.Length + "]" }.ToString();
     }
   }
 }

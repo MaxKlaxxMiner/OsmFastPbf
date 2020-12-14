@@ -52,10 +52,12 @@
     <Compile Include="FastPbfReader\Structs\HeaderBBox.cs" />
     <Compile Include="FastPbfReader\Structs\HeaderBlock.cs" />
     <Compile Include="FastPbfReader\PbfParseException.cs" />
+    <Compile Include="FastPbfReader\Structs\MemberType.cs" />
     <Compile Include="FastPbfReader\Structs\OsmNode.cs" />
     <Compile Include="FastPbfReader\Structs\OsmBlob.cs" />
     <Compile Include="FastPbfReader\Helper\ProtoBuf.cs" />
     <Compile Include="FastPbfReader\Structs\OsmRelation.cs" />
+    <Compile Include="FastPbfReader\Structs\OsmRelationMember.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="zlibTuned\Crc32Helper.cs" />
     <Compile Include="zlibTuned\Deflater.cs" />

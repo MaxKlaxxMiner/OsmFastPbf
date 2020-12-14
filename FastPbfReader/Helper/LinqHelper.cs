@@ -164,5 +164,17 @@ namespace OsmFastPbf.Helper
       if (start > 0 && compareMethod(array[start - 1]) == 0) return start;
       return -1;
     }
+
+    public static T[] ToArray<T>(this IEnumerable<T> values, int count)
+    {
+      var output = new T[count];
+      int ofs = 0;
+      foreach (var val in values)
+      {
+        output[ofs++] = val;
+      }
+      if (ofs != output.Length) throw new IndexOutOfRangeException();
+      return output;
+    }
   }
 }
