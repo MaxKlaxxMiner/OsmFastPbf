@@ -1,5 +1,6 @@
 ﻿// ReSharper disable RedundantUsingDirective
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using OsmFastPbf;
@@ -70,8 +71,8 @@ namespace TestTool
           int len = PbfFastNodes.DecodePrimitiveBlock(outputBuf, 0, blob, out nodes);
           if (len != blob.rawSize) throw new PbfParseException();
 
-          var findNode = nodes.BinarySearchSingle(x => x.id - testNodeID); // fast (sorted) version
-          // findNode = { id = 240109189, Latitude = 52,5170365, Longitude = 13,3888599 }
+          var node = nodes.BinarySearchSingle(x => x.id - testNodeID);
+          var values = node.values.ToDictionary(x => x.Key, x => x.Value);
         }
       }
     }

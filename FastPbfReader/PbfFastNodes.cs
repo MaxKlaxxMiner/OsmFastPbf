@@ -1,6 +1,7 @@
 ﻿
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using OsmFastPbf.Helper;
 // ReSharper disable UselessBinaryOperation
 // ReSharper disable RedundantAssignment
@@ -89,7 +90,7 @@ namespace OsmFastPbf
       return len;
     }
 
-    static int DecodeDenseNodes(byte[] buf, int ofs, out GpsNode[] gpsNodes)
+    static int DecodeDenseNodes(byte[] buf, int ofs, string[] stringTable, out GpsNode[] gpsNodes)
     {
       /*****
        * message DenseNodes
@@ -114,7 +115,6 @@ namespace OsmFastPbf
       long[] id;
       long[] lat = null;
       long[] lon = null;
-      int[] keysVals = null;
 
       // --- repeated sint64 id = 1 [packed = true]; // DELTA coded ---
       if (buf[ofs + len] == (1 << 3 | 2))
@@ -152,24 +152,42 @@ namespace OsmFastPbf
       }
 
       // --- repeated int32 keys_vals = 10 [packed = true]; ---
+      int[] nodeKeys;
       if (buf[ofs + len] == (10 << 3 | 2))
       {
         len++;
-        len += ProtoBuf.DecodePackedInt32(buf, ofs + len, out keysVals);
+        len += ProtoBuf.DecodePackedInt32(buf, ofs + len, out nodeKeys);
+      }
+      else
+      {
+        nodeKeys = new int[0];
       }
 
       if (len != endLen) throw new PbfParseException();
 
+      var strTmp = new List<KeyValuePair<string, string>[]>();
+      var empty = new KeyValuePair<string, string>[0];
+      for (int i = 0; i < nodeKeys.Length; i++)
+      {
+        var li = new List<KeyValuePair<string, string>>();
+        while (nodeKeys[i] != 0)
+        {
+          li.Add(new KeyValuePair<string, string>(stringTable[nodeKeys[i]], stringTable[nodeKeys[i + 1]]));
+          i += 2;
+        }
+        strTmp.Add(li.Count > 0 ? li.ToArray() : empty);
+      }
+
       gpsNodes = new GpsNode[id.Length];
       for (int i = 0; i < gpsNodes.Length; i++)
       {
-        gpsNodes[i] = new GpsNode(id[i], (int)lat[i], (int)lon[i]);
+        gpsNodes[i] = new GpsNode(id[i], (int)lat[i], (int)lon[i], strTmp[i]);
       }
 
       return len;
     }
 
-    static int DecodePrimitiveGroup(byte[] buf, int ofs, out GpsNode[] nodes)
+    static int DecodePrimitiveGroup(byte[] buf, int ofs, string[] stringTable, out GpsNode[] nodes)
     {
       /*****
        * message PrimitiveGroup
@@ -194,7 +212,7 @@ namespace OsmFastPbf
       if (buf[ofs + len] == (2 << 3 | 2))
       {
         len++;
-        len += DecodeDenseNodes(buf, ofs + len, out nodes);
+        len += DecodeDenseNodes(buf, ofs + len, stringTable, out nodes);
       }
       else
       {
@@ -222,7 +240,7 @@ namespace OsmFastPbf
       return len;
     }
 
-    public static int DecodePrimitiveBlock(byte[] buf, int ofs, OsmBlob blob, out GpsNode[] output)
+    public static int DecodePrimitiveBlock(byte[] buf, int ofs, OsmBlob blob, out GpsNode[] gpsNodes)
     {
       /*****
        * message PrimitiveBlock
@@ -253,7 +271,7 @@ namespace OsmFastPbf
       len += ProtoBuf.DecodeStringTable(buf, ofs + len, out stringTable);
 
       // --- repeated PrimitiveGroup primitivegroup = 2; ---
-      output = new GpsNode[blob.nodeCount];
+      gpsNodes = new GpsNode[blob.nodeCount];
       int outputOfs = 0;
       while (buf[ofs + len] == (2 << 3 | 2))
       {
@@ -264,13 +282,13 @@ namespace OsmFastPbf
         while (len < endLen)
         {
           GpsNode[] nodes;
-          len += DecodePrimitiveGroup(buf, ofs + len, out nodes);
-          Array.Copy(nodes, 0, output, outputOfs, nodes.Length);
+          len += DecodePrimitiveGroup(buf, ofs + len, stringTable, out nodes);
+          Array.Copy(nodes, 0, gpsNodes, outputOfs, nodes.Length);
           outputOfs += nodes.Length;
         }
         if (len != endLen) throw new PbfParseException();
       }
-      if (outputOfs != output.Length) throw new IndexOutOfRangeException();
+      if (outputOfs != gpsNodes.Length) throw new IndexOutOfRangeException();
 
       // optional int32 granularity = 17 [default=100];
       // optional int64 lat_offset = 19 [default=0];
