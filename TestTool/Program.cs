@@ -5,7 +5,10 @@ using System.IO;
 using System.Linq;
 using OsmFastPbf;
 using OsmFastPbf.Helper;
-// ReSharper disable UselessBinaryOperation
+using System.Windows.Forms;
+using System.Drawing;
+using System.Drawing.Imaging;
+
 // ReSharper disable UnusedVariable
 
 namespace TestTool
@@ -23,86 +26,73 @@ namespace TestTool
       }
     }
 
+    static void ViewPicture(Image image, string title = "")
+    {
+      var pic = new PictureBox
+      {
+        Image = image,
+        SizeMode = PictureBoxSizeMode.StretchImage,
+        Dock = DockStyle.Fill
+      };
+      var form = new Form
+      {
+        ClientSize = image.Size,
+        Text = title
+      };
+      form.Controls.Add(pic);
+      form.ShowDialog();
+    }
+
+    static double GpsDistance(double lat1, double lon1, double lat2, double lon2)
+    {
+      const double GpsRadPi = 0.017453292519943295769236907684886;
+      const double GpsLen = 6378000.0;
+      double radius1 = lat1 * GpsRadPi;
+      double radius2 = lon1 * GpsRadPi;
+      double radius3 = lat2 * GpsRadPi;
+      double radius4 = lon2 * GpsRadPi;
+
+      double summ = Math.Sin(radius1) * Math.Sin(radius3) + Math.Cos(radius1) * Math.Cos(radius3) * Math.Cos(radius4 - radius2);
+
+      return Math.Acos(summ) * GpsLen;
+    }
+
     static void Main(string[] args)
     {
       //BufferTest(); return;
       //HgtTest(); return;
+      ParseTest(); return;
 
-      using (var pbf = new OsmPbfReader(PbfPath))
+      const int Height = 1400;
+      const int Padding = 10;
+      const string PointFile = "11775386_outer.txt"; // La Palma
+      //const string PointFile = "51477_outer.txt"; // DE
+      //const string PointFile = "62422_outer.txt"; // Berlin
+      //const string PointFile = "2214684_outer.txt";
+
+      var points = File.ReadAllLines(PointFile).Select(x => new PointXY(x, true)).ToArray();
+      int minX = points.Min(p => p.x);
+      int maxX = points.Max(p => p.x);
+      int minY = points.Min(p => p.y);
+      int maxY = points.Max(p => p.y);
+
+      double distX = GpsDistance((minY + (maxY - minY) / 2) / 10000000.0, minX / 10000000.0, (minY + (maxY - minY) / 2) / 10000000.0, maxX / 10000000.0);
+      double distY = GpsDistance(minY / 10000000.0, 0, maxY / 10000000.0, 0);
+
+      int width = (int)((Height - Padding - Padding) / distY * distX) + Padding + Padding;
+
+      var pic = new Bitmap(width, Height, PixelFormat.Format32bppRgb);
+      double mulX = (width - Padding - Padding) / (double)(maxX - minX);
+      double mulY = (Height - Padding - Padding) / (double)(maxY - minY);
+
+      foreach (var p in points)
       {
-        //long testRelationID = 418713; // Herrnhut (Germany)
-        long testRelationID = 62422; // Berlin
-        //long testRelationID = 62504; // Brandenburg (Germany) - https://www.openstreetmap.org/relation/62504
-        //long testRelationID = 1434381; // Insel Rügen (Germany)
-        //long testRelationID = 51477; // Germany
-        //long testRelationID = 2214684; // La Gomera (Canarias)
-        //long testRelationID = 2182003; // Menorca (Balearic Islands)
-
-        var relations = pbf.ReadRelations(testRelationID);
-        for (; ; ) // untergeordnete Relationen einlesen
-        {
-          var needRelations = new List<long>();
-          foreach (var r in relations)
-          {
-            foreach (var sub in r.members.Where(x => x.type == MemberType.Relation))
-            {
-              if (relations.Any(x => x.id == sub.id)) continue;
-              needRelations.Add(sub.id);
-            }
-          }
-          if (needRelations.Count == 0) break;
-          relations = relations.Concat(pbf.ReadRelations(needRelations.ToArray())).ToArray(relations.Length + needRelations.Count);
-        }
-
-        var ways = pbf.ReadWays(relations.SelectMany(r => r.members.Where(x => x.type == MemberType.Way).Select(x => x.id)).ToArray());
-        Array.Sort(ways, (x, y) => x.id.CompareTo(y.id));
-
-        var nodes = pbf.ReadNodes(relations.SelectMany(r => r.members.Where(x => x.type == MemberType.Node).Select(x => x.id)).Concat(ways.SelectMany(w => w.nodeIds)).ToArray());
-        Array.Sort(nodes, (x, y) => x.id.CompareTo(y.id));
-
-        Console.WriteLine("nodes: {0:N0}", nodes.Length);
-
-        var knownNodes = new HashSet<long>();
-        Func<StreamWriter, long, string, int> writePath = null;
-        writePath = (wdat, relationId, type) =>
-        {
-          int count = 0;
-          var rel = relations.First(x => x.id == relationId);
-          foreach (var member in rel.members)
-          {
-            switch (member.type)
-            {
-              case MemberType.Node: break; // skip
-              case MemberType.Way:
-              {
-                if (member.role == type)
-                {
-                  var way = ways.BinarySearchSingle(w => w.id - member.id);
-                  foreach (var nodeId in way.nodeIds)
-                  {
-                    if (knownNodes.Contains(nodeId)) continue;
-                    knownNodes.Add(nodeId);
-                    var node = nodes.BinarySearchSingle(n => n.id - nodeId);
-                    wdat.WriteLine(node.latCode + "," + node.lonCode);
-                    count++;
-                  }
-                }
-              } break;
-              case MemberType.Relation: count += writePath(wdat, member.id, type); break;
-            }
-          }
-          return count;
-        };
-
-        using (var wdat = new StreamWriter(testRelationID + "_outer.txt"))
-        {
-          writePath(wdat, testRelationID, "outer");
-        }
-        using (var wdat = new StreamWriter(testRelationID + "_inner.txt"))
-        {
-          writePath(wdat, testRelationID, "inner");
-        }
+        int x = (int)((p.x - minX) * mulX) + Padding;
+        int y = Height - (int)((p.y - minY) * mulY) - Padding;
+        pic.SetPixel(x, y, Color.FromArgb(0x0080ff - 16777216));
       }
+
+      ViewPicture(pic, PointFile);
     }
   }
 }

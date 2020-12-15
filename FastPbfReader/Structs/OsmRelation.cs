@@ -24,6 +24,11 @@ namespace OsmFastPbf
     }
     public override string ToString()
     {
+      string name = values.FirstOrDefault(x => x.Key == "name").Value;
+      if (name != "")
+      {
+        return new { id, name, values = "[" + values.Length + "]", members = "[" + members.Length + "]" }.ToString();
+      }
       return new { id, values = "[" + values.Length + "]", members = "[" + members.Length + "]" }.ToString();
     }
   }

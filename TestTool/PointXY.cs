@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 // ReSharper disable UnusedMember.Global
 // ReSharper disable MemberCanBePrivate.Global
 // ReSharper disable NotAccessedField.Global
@@ -14,6 +15,28 @@ namespace TestTool
     {
       this.x = x;
       this.y = y;
+    }
+
+    static readonly char[] SplitChars = new[] { ' ', ',', '\t' };
+
+    public PointXY(string txt, bool swapXY = false)
+    {
+      var sp = txt.Split(SplitChars, 2, StringSplitOptions.RemoveEmptyEntries);
+      if (swapXY)
+      {
+        x = int.Parse(sp[1]);
+        y = int.Parse(sp[0]);
+      }
+      else
+      {
+        x = int.Parse(sp[0]);
+        y = int.Parse(sp[1]);
+      }
+    }
+
+    public override string ToString()
+    {
+      return new { x, y }.ToString();
     }
 
     public static IEnumerable<PointXY> ZigZag(int size)
