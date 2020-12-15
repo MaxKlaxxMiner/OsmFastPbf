@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using OsmFastPbf.Helper;
+// ReSharper disable UnusedMethodReturnValue.Global
 
 // ReSharper disable UnusedType.Global
 // ReSharper disable NotAccessedField.Local
@@ -55,7 +56,7 @@ namespace OsmFastPbf
     /// </summary>
     /// <param name="planetFilePbf">PBF-Datei, welche geöffnet werden soll (z.B. planet-latest.osm.pbf)</param>
     /// <param name="maxCacheMByte">maximale Cachegröße in Megabyte</param>
-    public OsmPbfReader(string planetFilePbf, int maxCacheMByte = 1024)
+    public OsmPbfReader(string planetFilePbf, int maxCacheMByte = 64)
     {
       var index = PbfFastScan.ReadIndex(planetFilePbf, false);
       nodeIndex = index.Where(x => x.nodeCount > 0).ToArray();
@@ -107,11 +108,6 @@ namespace OsmFastPbf
       if (bytes != blob.rawSize) throw new PbfParseException();
       outputBuf[bytes] = 0;
 
-      if (cache[minIndex].pbfOffset == -1)
-      {
-        Console.Title = "Cache: " + (minIndex + 1) + " / " + cache.Length;
-      }
-
       // --- Cache aktualisieren ---
       cache[minIndex].pbfOffset = blob.pbfOfs;
       cache[minIndex].lastUseTime = Environment.TickCount;
@@ -147,7 +143,7 @@ namespace OsmFastPbf
       var searchNodes = Enumerable.Range(0, nodeIds.Length).Select(i => new KeyValuePair<long, int>(nodeIds[i], i)).ToArray(nodeIds.Length);
       Array.Sort(searchNodes, (x, y) => x.Key.CompareTo(y.Key));
 
-      var nodeBlob = wayIndex[0];
+      var nodeBlob = wayIndex[0]; // dummy-element
       OsmNode[] nodes = null;
       for (int n = 0; n < searchNodes.Length; n++)
       {
@@ -165,6 +161,80 @@ namespace OsmFastPbf
         }
 
         result[searchNodes[n].Value] = nodes.BinarySearchSingle(x => x.id - nodeId);
+      }
+
+      return result;
+    }
+    #endregion
+
+    #region # public OsmWay[] ReadWays(params long[] wayIds) // liest ein oder mehrere Wege ein und gibt die Ergebnisse in entsprechender Reihenfolge zurück
+    /// <summary>
+    /// liest ein oder mehrere Wege ein und gibt die Ergebnisse in entsprechender Reihenfolge zurück
+    /// </summary>
+    /// <param name="wayIds">Wege-IDs, welche abgefragt werden sollen</param>
+    /// <returns>Array mit den abgefragten Wegen</returns>
+    public OsmWay[] ReadWays(params long[] wayIds)
+    {
+      var result = new OsmWay[wayIds.Length];
+
+      var searchWays = Enumerable.Range(0, wayIds.Length).Select(i => new KeyValuePair<long, int>(wayIds[i], i)).ToArray(wayIds.Length);
+      Array.Sort(searchWays, (x, y) => x.Key.CompareTo(y.Key));
+
+      var wayBlob = nodeIndex[0]; // dummy-element
+      OsmWay[] ways = null;
+      for (int w = 0; w < searchWays.Length; w++)
+      {
+        long wayId = searchWays[w].Key;
+
+        if (wayId > wayBlob.maxWayId || wayId < wayBlob.minWayId)
+        {
+          wayBlob = wayIndex.BinarySearchSingle(x => wayId >= x.minWayId && wayId <= x.maxWayId ? 0L : x.minWayId - wayId);
+
+          Console.WriteLine("read ways: {0:N0} / {1:N0}", w + 1, searchWays.Length);
+
+          var buf = FetchBlob(wayBlob);
+          int len = PbfFastWays.DecodePrimitiveBlock(buf, 0, wayBlob, out ways);
+          if (len != wayBlob.rawSize) throw new PbfParseException();
+        }
+
+        result[searchWays[w].Value] = ways.BinarySearchSingle(x => x.id - wayId);
+      }
+
+      return result;
+    }
+    #endregion
+
+    #region # public OsmRelation[] ReadRelations(params long[] relationIds) // liest ein oder mehrere OSM-Relationen ein und gibt die Ergebnisse in entsprechender Reihenfolge zurück
+    /// <summary>
+    /// liest ein oder mehrere OSM-Relationen ein und gibt die Ergebnisse in entsprechender Reihenfolge zurück
+    /// </summary>
+    /// <param name="relationIds">Relations-IDs, welche abgefragt werden sollen</param>
+    /// <returns>abgefragte Relationen</returns>
+    public OsmRelation[] ReadRelations(params long[] relationIds)
+    {
+      var result = new OsmRelation[relationIds.Length];
+
+      var searchRelations = Enumerable.Range(0, relationIds.Length).Select(i => new KeyValuePair<long, int>(relationIds[i], i)).ToArray(relationIds.Length);
+      Array.Sort(searchRelations, (x, y) => x.Key.CompareTo(y.Key));
+
+      var relationBlob = wayIndex[0]; // dummy-element
+      OsmRelation[] relations = null;
+      for (int r = 0; r < searchRelations.Length; r++)
+      {
+        long relationId = searchRelations[r].Key;
+
+        if (relationId > relationBlob.maxRelationId || relationId < relationBlob.minRelationId)
+        {
+          relationBlob = relationIndex.BinarySearchSingle(x => relationId >= x.minRelationId && relationId <= x.maxRelationId ? 0L : x.minRelationId - relationId);
+
+          Console.WriteLine("read relations: {0:N0} / {1:N0}", r + 1, searchRelations.Length);
+
+          var buf = FetchBlob(relationBlob);
+          int len = PbfFastRelations.DecodePrimitiveBlock(buf, 0, relationBlob, out relations);
+          if (len != relationBlob.rawSize) throw new PbfParseException();
+        }
+
+        result[searchRelations[r].Value] = relations.BinarySearchSingle(x => x.id - relationId);
       }
 
       return result;
