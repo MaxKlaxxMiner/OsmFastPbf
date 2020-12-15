@@ -30,7 +30,7 @@ namespace TestTool
 
       using (var pbf = new OsmPbfReader(PbfPath))
       {
-        var nodes = pbf.ReadNodes(240109189);
+        var nodes = pbf.ReadNodes(240109189, 20833613, 21687149, 1695218178, 240109188, 240109189, 240109190);
       }
 
       //using ()

@@ -120,6 +120,7 @@ namespace OsmFastPbf
     }
     #endregion
 
+    #region # // --- Dispose ---
     /// <summary>
     /// gibt alle Ressourcen wieder frei
     /// </summary>
@@ -131,7 +132,9 @@ namespace OsmFastPbf
         pbfReader = null;
       }
     }
+    #endregion
 
+    #region # public OsmNode[] ReadNodes(params long[] nodeIds) // liest mehrere OSM-Knoten ein und gibt die Ergebnisse in entsprechender Reihenfolge zurück
     /// <summary>
     /// liest mehrere OSM-Knoten ein und gibt die Ergebnisse in entsprechender Reihenfolge zurück
     /// </summary>
@@ -141,12 +144,31 @@ namespace OsmFastPbf
     {
       var result = new OsmNode[nodeIds.Length];
 
-      var searchNodes = new HashSet<long>(nodeIds).ToArray();
-      Array.Sort(searchNodes);
+      var searchNodes = Enumerable.Range(0, nodeIds.Length).Select(i => new KeyValuePair<long, int>(nodeIds[i], i)).ToArray(nodeIds.Length);
+      Array.Sort(searchNodes, (x, y) => x.Key.CompareTo(y.Key));
 
+      var nodeBlob = wayIndex[0];
+      OsmNode[] nodes = null;
+      for (int n = 0; n < searchNodes.Length; n++)
+      {
+        long nodeId = searchNodes[n].Key;
 
+        if (nodeId > nodeBlob.maxNodeId || nodeId < nodeBlob.minNodeId)
+        {
+          nodeBlob = nodeIndex.BinarySearchSingle(x => nodeId >= x.minNodeId && nodeId <= x.maxNodeId ? 0L : x.minNodeId - nodeId);
 
-      return null;
+          Console.WriteLine("read nodes: {0:N0} / {1:N0}", n + 1, searchNodes.Length);
+
+          var buf = FetchBlob(nodeBlob);
+          int len = PbfFastNodes.DecodePrimitiveBlock(buf, 0, nodeBlob, out nodes);
+          if (len != nodeBlob.rawSize) throw new PbfParseException();
+        }
+
+        result[searchNodes[n].Value] = nodes.BinarySearchSingle(x => x.id - nodeId);
+      }
+
+      return result;
     }
+    #endregion
   }
 }
