@@ -44,10 +44,6 @@
     <Compile Include="FastPbfReader\FastPbfReader.cs" />
     <Compile Include="FastPbfReader\Helper\LinqHelper.cs" />
     <Compile Include="FastPbfReader\PbfFast.cs" />
-    <Compile Include="FastPbfReader\PbfFastNodes.cs" />
-    <Compile Include="FastPbfReader\PbfFastRelations.cs" />
-    <Compile Include="FastPbfReader\PbfFastWays.cs" />
-    <Compile Include="FastPbfReader\PbfFastScan.cs" />
     <Compile Include="FastPbfReader\Structs\BlobTask.cs" />
     <Compile Include="FastPbfReader\Structs\HeaderBBox.cs" />
     <Compile Include="FastPbfReader\Structs\HeaderBlock.cs" />

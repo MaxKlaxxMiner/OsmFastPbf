@@ -58,7 +58,7 @@ namespace OsmFastPbf
     /// <param name="maxCacheMByte">maximale Cachegröße in Megabyte</param>
     public OsmPbfReader(string planetFilePbf, int maxCacheMByte = 64)
     {
-      var index = PbfFastScan.ReadIndex(planetFilePbf, false);
+      var index = PbfFast.ReadIndex(planetFilePbf, false);
       nodeIndex = index.Where(x => x.nodeCount > 0).ToArray();
       wayIndex = index.Where(x => x.wayCount > 0).ToArray();
       relationIndex = index.Where(x => x.relationCount > 0).ToArray();
@@ -156,7 +156,7 @@ namespace OsmFastPbf
           Console.WriteLine("read nodes: {0:N0} / {1:N0}", n + 1, searchNodes.Length);
 
           var buf = FetchBlob(nodeBlob);
-          int len = PbfFastNodes.DecodePrimitiveBlock(buf, 0, nodeBlob, out nodes);
+          int len = PbfFast.DecodePrimitiveBlock(buf, 0, nodeBlob, out nodes);
           if (len != nodeBlob.rawSize) throw new PbfParseException();
         }
 
@@ -193,7 +193,7 @@ namespace OsmFastPbf
           Console.WriteLine("read ways: {0:N0} / {1:N0}", w + 1, searchWays.Length);
 
           var buf = FetchBlob(wayBlob);
-          int len = PbfFastWays.DecodePrimitiveBlock(buf, 0, wayBlob, out ways);
+          int len = PbfFast.DecodePrimitiveBlock(buf, 0, wayBlob, out ways);
           if (len != wayBlob.rawSize) throw new PbfParseException();
         }
 
@@ -230,7 +230,7 @@ namespace OsmFastPbf
           Console.WriteLine("read relations: {0:N0} / {1:N0}", r + 1, searchRelations.Length);
 
           var buf = FetchBlob(relationBlob);
-          int len = PbfFastRelations.DecodePrimitiveBlock(buf, 0, relationBlob, out relations);
+          int len = PbfFast.DecodePrimitiveBlock(buf, 0, relationBlob, out relations);
           if (len != relationBlob.rawSize) throw new PbfParseException();
         }
 
