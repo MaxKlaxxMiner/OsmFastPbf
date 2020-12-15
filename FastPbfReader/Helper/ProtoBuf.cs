@@ -25,7 +25,7 @@ namespace OsmFastPbf.Helper
     }
 
     /// <summary>
-    /// liest einen gepackten unsignerten Integer-Wert ein
+    /// liest einen gepackten unsignierten Integer-Wert ein
     /// </summary>
     /// <param name="buf">Buffer, woraus der Wert gelesen werden soll</param>
     /// <param name="ofs">Startposition innerhalb des Buffers</param>
@@ -50,7 +50,27 @@ namespace OsmFastPbf.Helper
     }
 
     /// <summary>
-    /// liest einen gepackten unsignerten Integer-Wert ein und gibt diesen zurück
+    /// schreibt einen gepackten unsignierten Integer-Wert in den Buffer und gibt die Anzahl der geschriebenen Bytes zurück
+    /// </summary>
+    /// <param name="buf">Buffer, wohin der Wert geschrieben werden soll</param>
+    /// <param name="ofs">Startposition innerhalb des Buffers</param>
+    /// <param name="val">Wert, welcher geschrieben werden soll</param>
+    /// <returns>Anzahl der geschriebenen Bytes</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int WriteVarInt(byte[] buf, int ofs, ulong val)
+    {
+      int len = 0;
+      for (; ; )
+      {
+        buf[ofs + len++] = (byte)(val & 127);
+        if (val < 128) break;
+        throw new NotImplementedException();
+      }
+      return len;
+    }
+
+    /// <summary>
+    /// liest einen gepackten unsignierten Integer-Wert ein und gibt diesen zurück
     /// </summary>
     /// <param name="buf">Buffer, woraus der Wert gelesen werden soll</param>
     /// <param name="ofs">Startposition innerhalb des Buffers</param>

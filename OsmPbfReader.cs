@@ -240,5 +240,48 @@ namespace OsmFastPbf
       return result;
     }
     #endregion
+
+    public IEnumerable<OsmNode> ReadAllNodes()
+    {
+      foreach (var nodeBlob in nodeIndex)
+      {
+        var buf = FetchBlob(nodeBlob);
+        OsmNode[] nodes;
+        int len = PbfFast.DecodePrimitiveBlock(buf, 0, nodeBlob, out nodes);
+        if (len != nodeBlob.rawSize) throw new PbfParseException();
+        foreach (var node in nodes)
+        {
+          yield return node;
+        }
+      }
+    }
+    public IEnumerable<OsmWay> ReadAllWays()
+    {
+      foreach (var wayBlob in wayIndex)
+      {
+        var buf = FetchBlob(wayBlob);
+        OsmWay[] ways;
+        int len = PbfFast.DecodePrimitiveBlock(buf, 0, wayBlob, out ways);
+        if (len != wayBlob.rawSize) throw new PbfParseException();
+        foreach (var way in ways)
+        {
+          yield return way;
+        }
+      }
+    }
+    public IEnumerable<OsmRelation> ReadAllRelations()
+    {
+      foreach (var relationBlob in relationIndex)
+      {
+        var buf = FetchBlob(relationBlob);
+        OsmRelation[] relations;
+        int len = PbfFast.DecodePrimitiveBlock(buf, 0, relationBlob, out relations);
+        if (len != relationBlob.rawSize) throw new PbfParseException();
+        foreach (var relation in relations)
+        {
+          yield return relation;
+        }
+      }
+    }
   }
 }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using OsmFastPbf.Helper;
+// ReSharper disable UselessBinaryOperation
 
 namespace OsmFastPbf
 {
