@@ -47,6 +47,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ConverterTest_2_SortNodes.cs" />
     <Compile Include="ConverterTest_1_ExtractNodes.cs" />
     <Compile Include="DrawTest.cs" />
     <Compile Include="ParseTest.cs" />
