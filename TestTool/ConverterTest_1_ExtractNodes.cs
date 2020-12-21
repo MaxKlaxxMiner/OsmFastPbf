@@ -14,15 +14,16 @@ namespace TestTool
   {
     static void ConverterTest_1_ExtractNodes()
     {
+      using (var wdatRaw = File.Create("../tmp/node_rawfull.dat"))
+      using (var wdatRawIndex = File.Create("../tmp/node_rawfull_index.dat"))
       using (var pbf = new OsmPbfReader(PbfPath))
       {
         long cc = 0;
 
-        var bufFull = new byte[2000 * 1048576];
-        int lenFull = 0;
-        long lastFullId = 0;
-        long lastFullPos = 0;
-        int blockFull = 0;
+        var rawBuf = new byte[4096];
+        int rawLen = 0;
+        long rawId = 0;
+        long rawPos = 0;
 
         var buf = new byte[2000 * 1048576];
         int len = 0;
@@ -33,34 +34,35 @@ namespace TestTool
         long totalPos = 0;
         long totalSum = pbf.nodeIndex.Sum(x => x.nodeCount);
 
+        wdatRawIndex.Write(BitConverter.GetBytes(0L), 0, sizeof(long));
+        wdatRawIndex.Write(BitConverter.GetBytes(0L), 0, sizeof(long));
         foreach (var node in pbf.ReadAllNodes())
         {
           totalPos++;
 
           var gpsPos = new GpsPos(node);
 
-          lenFull += ProtoBuf.WriteVarInt(bufFull, lenFull, ProtoBuf.UnsignedInt64(node.id - lastFullId));
-          lastFullId = node.id;
+          rawLen += ProtoBuf.WriteVarInt(rawBuf, rawLen, ProtoBuf.UnsignedInt64(node.id - rawId));
+          rawId = node.id;
           long nextFullPos = gpsPos.Int64Pos;
-          lenFull += ProtoBuf.WriteVarInt(bufFull, lenFull, ProtoBuf.UnsignedInt64(nextFullPos - lastFullPos));
-          lastFullPos = nextFullPos;
+          rawLen += ProtoBuf.WriteVarInt(rawBuf, rawLen, ProtoBuf.UnsignedInt64(nextFullPos - rawPos));
+          rawPos = nextFullPos;
 
-          if (lenFull > bufFull.Length - 18)
+          if (rawLen > rawBuf.Length - 18)
           {
-            blockFull++;
-            using (var wdat = File.Create("../tmp/node_blockfull_" + blockFull + "_" + lastFullId + ".dat"))
-            {
-              wdat.Write(bufFull, 0, lenFull);
-              lenFull = 0;
-              lastFullId = 0;
-              lastFullPos = 0;
-            }
+            while (rawLen < rawBuf.Length) rawBuf[rawLen++] = 0;
+            wdatRaw.Write(rawBuf, 0, rawBuf.Length);
+            wdatRawIndex.Write(BitConverter.GetBytes(rawId+1), 0, sizeof(long));
+            wdatRawIndex.Write(BitConverter.GetBytes(wdatRaw.Length), 0, sizeof(long));
+            rawLen = 0;
+            rawId = 0;
+            rawPos = 0;
           }
 
           if (node.values.Length > 0)
           {
             cc++;
-            if ((ushort)cc == 0) Console.WriteLine(cc.ToString("N0") + " (" + (100.0 / totalSum * totalPos).ToString("N2") + " %) - " + (len / 1048576.0).ToString("N1") + " MByte / " + (lenFull / 1048576.0).ToString("N1") + " MByte");
+            if ((ushort)cc == 0) Console.WriteLine(cc.ToString("N0") + " (" + (100.0 / totalSum * totalPos).ToString("N2") + " %) - " + (len / 1048576.0).ToString("N1") + " MByte / " + (wdatRaw.Length / 1048576.0).ToString("N1") + " MByte");
             len += ProtoBuf.WriteVarInt(buf, len, ProtoBuf.UnsignedInt64(node.id - lastId));
             lastId = node.id;
             long nextPos = gpsPos.Int64Pos;
@@ -85,13 +87,10 @@ namespace TestTool
             }
           }
         }
-        if (lenFull > 0)
+        if (rawLen > 0)
         {
-          blockFull++;
-          using (var wdat = File.Create("../tmp/node_blockfull_" + blockFull + "_" + lastFullId + ".dat"))
-          {
-            wdat.Write(bufFull, 0, lenFull);
-          }
+          while (rawLen < rawBuf.Length) rawBuf[rawLen++] = 0;
+          wdatRaw.Write(rawBuf, 0, rawBuf.Length);
         }
         if (len > 0)
         {

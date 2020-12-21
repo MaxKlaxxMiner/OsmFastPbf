@@ -38,7 +38,7 @@ namespace TestTool
       using (var wdat = File.Create("../tmp/node_sorted_" + lastId + ".dat"))
       {
         var buf = new byte[1048576];
-        int p = 4;
+        int p = 8;
 
         p += ProtoBuf.WriteVarInt(buf, p, (uint)keyDict.Count);
         foreach (var k in keyDict.OrderBy(x => x.Value).Select(x => x.Key))
@@ -52,6 +52,11 @@ namespace TestTool
           p += ProtoBuf.WriteString(buf, p, k);
           if (p > 1000000) p += write(wdat, buf, p);
         }
+        p += write(wdat, buf, p);
+        wdat.Position = 0;
+        wdat.Write(BitConverter.GetBytes((int)wdat.Length), 0, sizeof(int));
+        wdat.Position = wdat.Length;
+
         p += ProtoBuf.WriteVarInt(buf, p, (uint)(outputValues.Count / 2));
         foreach (var v in outputValues)
         {
@@ -59,7 +64,7 @@ namespace TestTool
           if (p > 1000000) p += write(wdat, buf, p);
         }
         p += write(wdat, buf, p);
-        wdat.Position = 0;
+        wdat.Position = 4;
         wdat.Write(BitConverter.GetBytes((int)wdat.Length), 0, sizeof(int));
         wdat.Position = wdat.Length;
 
@@ -149,7 +154,7 @@ namespace TestTool
         }
         Console.WriteLine("parse: " + blockFile);
         DecodeNodeBlock(buf, bufLen);
-        //File.Delete(blockFile);
+        File.Delete(blockFile);
       }
     }
   }

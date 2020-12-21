@@ -48,7 +48,7 @@ namespace OsmFastPbf
     }
 
     /// <summary>
-    /// vermilzt die Bits wieder
+    /// verschmilzt die Bits wieder
     /// </summary>
     /// <param name="w">Bits, welche verschmolzen werden müssen</param>
     /// <returns>fertiges Ergebnis</returns>

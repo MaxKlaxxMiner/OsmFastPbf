@@ -26,6 +26,11 @@ namespace TestTool
       }
     }
 
+    static void ConverterTest_3_MergeNodes()
+    {
+
+    }
+
     static void Main(string[] args)
     {
       //BufferTest(); return;
@@ -33,7 +38,8 @@ namespace TestTool
       //ParseTest(); return;
       //DrawTest(); return;
       //ConverterTest_1_ExtractNodes();
-      ConverterTest_2_SortNodes();
+      //ConverterTest_2_SortNodes();
+      ConverterTest_3_MergeNodes();
     }
   }
 }
