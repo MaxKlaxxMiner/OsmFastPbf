@@ -12,7 +12,7 @@ namespace TestTool
 {
   partial class Program
   {
-    static void ConverterTest()
+    static void ConverterTest_1_ExtractNodes()
     {
       using (var pbf = new OsmPbfReader(PbfPath))
       {

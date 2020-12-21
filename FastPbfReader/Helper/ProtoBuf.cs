@@ -387,6 +387,7 @@ namespace OsmFastPbf.Helper
       if (len < 128)
       {
         buf[ofs] = (byte)(uint)len;
+        len++;
       }
       else
       {
