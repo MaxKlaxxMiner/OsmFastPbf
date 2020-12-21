@@ -47,6 +47,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ConverterTest.cs" />
     <Compile Include="DrawTest.cs" />
     <Compile Include="ParseTest.cs" />
     <Compile Include="PointXY.cs" />

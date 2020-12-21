@@ -45,6 +45,7 @@
     <Compile Include="FastPbfReader\Helper\LinqHelper.cs" />
     <Compile Include="FastPbfReader\PbfFast.cs" />
     <Compile Include="FastPbfReader\Structs\BlobTask.cs" />
+    <Compile Include="FastPbfReader\Structs\GpsPos.cs" />
     <Compile Include="FastPbfReader\Structs\HeaderBBox.cs" />
     <Compile Include="FastPbfReader\Structs\HeaderBlock.cs" />
     <Compile Include="FastPbfReader\PbfParseException.cs" />

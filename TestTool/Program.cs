@@ -32,46 +32,7 @@ namespace TestTool
       //HgtTest(); return;
       //ParseTest(); return;
       //DrawTest(); return;
-
-
-      var buf = new byte[256];
-      for (ulong i = 0; i < ulong.MaxValue; i++)
-      {
-        int len1 = ProtoBuf.WriteVarInt(buf, 3, i);
-        ulong tmp;
-        int len2 = ProtoBuf.ReadVarInt(buf, 3, out tmp);
-        if (len1 != len2 || tmp != i) throw new Exception();
-      }
-
-      using (var pbf = new OsmPbfReader(PbfPath))
-      {
-        //long cc = 0;
-        //long full = 0;
-        //foreach (var node in pbf.ReadAllNodes())
-        //{
-        //  full++;
-        //  if (node.values.Length > 0)
-        //  {
-        //    cc++;
-        //    if ((ushort)cc == 0)
-        //    {
-        //      Console.WriteLine(cc.ToString("N0") + " / " + full.ToString("N0") + " (" + (100.0 / full * cc).ToString("N2") + " %) - " + node);
-        //    }
-        //  }
-        //}
-        //foreach (var way in pbf.ReadAllWays())
-        //{
-        //  Console.WriteLine(way);
-        //}
-        //foreach (var relation in pbf.ReadAllRelations())
-        //{
-        //  cc++;
-        //  if ((byte)cc == 0)
-        //  {
-        //    Console.WriteLine(cc.ToString("N0") + " - " + relation);
-        //  }
-        //}
-      }
+      ConverterTest();
     }
   }
 }

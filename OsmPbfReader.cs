@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using OsmFastPbf.Helper;
 // ReSharper disable UnusedMethodReturnValue.Global
+// ReSharper disable MemberCanBePrivate.Global
 
 // ReSharper disable UnusedType.Global
 // ReSharper disable NotAccessedField.Local
@@ -23,15 +24,15 @@ namespace OsmFastPbf
     /// <summary>
     /// merkt sich den Index auf die Blöcke mit den OSM-Knoten
     /// </summary>
-    readonly OsmBlob[] nodeIndex;
+    public readonly OsmBlob[] nodeIndex;
     /// <summary>
     /// merkt sich den Index auf die Blöcke mit den OSM-Wegen
     /// </summary>
-    readonly OsmBlob[] wayIndex;
+    public readonly OsmBlob[] wayIndex;
     /// <summary>
     /// merkt sich den Index auf die Blöcke mit den OSM-Relationen
     /// </summary>
-    readonly OsmBlob[] relationIndex;
+    public readonly OsmBlob[] relationIndex;
     /// <summary>
     /// merkt sich den geöffneten PBF-Reader
     /// </summary>

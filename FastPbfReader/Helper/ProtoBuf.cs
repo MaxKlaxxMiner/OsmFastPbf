@@ -64,7 +64,8 @@ namespace OsmFastPbf.Helper
       {
         buf[ofs + len++] = (byte)(val & 127);
         if (val < 128) break;
-        throw new NotImplementedException();
+        buf[ofs + len - 1] |= 128;
+        val >>= 7;
       }
       return len;
     }
@@ -100,6 +101,26 @@ namespace OsmFastPbf.Helper
     public static long SignedInt64(ulong val)
     {
       return (long)(val >> 1) ^ -(long)(val & 1);
+    }
+
+    /// <summary>
+    /// wandelt eine ZigZag-kodierte Zahl um (int -> uint)
+    /// </summary>
+    /// <param name="val">Wert, welcher umgewandelt werden soll</param>
+    /// <returns>fertiges Ergebnis</returns>
+    public static uint UnsignedInt32(int val)
+    {
+      return (uint)(val << 1 ^ val >> 31);
+    }
+
+    /// <summary>
+    /// wandelt eine ZigZag-kodierte Zahl um (long -> ulong)
+    /// </summary>
+    /// <param name="val">Wert, welcher umgewandelt werden soll</param>
+    /// <returns>fertiges Ergebnis</returns>
+    public static ulong UnsignedInt64(long val)
+    {
+      return (ulong)(val << 1 ^ val >> 63);
     }
 
     #region # // --- Read Packet ---
@@ -349,6 +370,30 @@ namespace OsmFastPbf.Helper
       len += ReadVarInt(buf, ofs + len, out dataLen);
       val = Encoding.UTF8.GetString(buf, ofs + len, (int)(uint)dataLen);
       len += (int)dataLen;
+      return len;
+    }
+
+    /// <summary>
+    /// schreibt eine Zeichenfolge in den Buffer und gibt die Anzahl der geschriebenen Bytes zurück
+    /// </summary>
+    /// <param name="buf">Buffer, wohin die Zeichenfolge geschrieben werden soll</param>
+    /// <param name="ofs">Startposition innerhalbb des Buffers</param>
+    /// <param name="val">Wert, welcher geschrieben werden soll</param>
+    /// <returns>Anzahl der geschriebenen Bytes</returns>
+    public static int WriteString(byte[] buf, int ofs, string val)
+    {
+      int len = Encoding.UTF8.GetBytes(val, 0, val.Length, buf, ofs + 1);
+
+      if (len < 128)
+      {
+        buf[ofs] = (byte)(uint)len;
+      }
+      else
+      {
+        len = WriteVarInt(buf, ofs, (uint)len);
+        len += Encoding.UTF8.GetBytes(val, 0, val.Length, buf, ofs + len);
+      }
+
       return len;
     }
 
