@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using OsmFastPbf.Helper;
 // ReSharper disable UnusedMethodReturnValue.Global
@@ -18,7 +19,7 @@ namespace OsmFastPbf
   /// <summary>
   /// Klasse zum handlichen Auslesen von Openstreetmap-Daten aus einer PBF-Datei
   /// </summary>
-  public class OsmPbfReader : IDisposable
+  public sealed class OsmPbfReader : IDisposable
   {
     #region # // --- Felder + Cache ---
     /// <summary>
@@ -166,6 +167,82 @@ namespace OsmFastPbf
 
       return result;
     }
+
+    /// <summary>
+    /// liest mehrere OSM-Knoten ein und gibt die Ergebnisse in entsprechender Reihenfolge zurück
+    /// </summary>
+    /// <param name="nodeIds">Knoten-IDs, welche abgefragt werden sollen</param>
+    /// <returns>Array mit den abgefragten Knoten</returns>
+    public OsmNode[] ReadNodes2(params long[] nodeIds)
+    {
+      var result = new OsmNode[nodeIds.Length];
+
+      var searchNodes = Enumerable.Range(0, nodeIds.Length).Select(i => new KeyValuePair<long, int>(nodeIds[i], i)).ToArray(nodeIds.Length);
+      Array.Sort(searchNodes, (x, y) => x.Key.CompareTo(y.Key));
+
+      var needBlobs = new List<OsmBlob>();
+      var lastBlob = wayIndex[0];
+      foreach (var nodeId in searchNodes.Select(x => x.Key))
+      {
+        if (nodeId > lastBlob.maxNodeId || nodeId < lastBlob.minNodeId)
+        {
+          lastBlob = nodeIndex.BinarySearchSingle(x => nodeId >= x.minNodeId && nodeId <= x.maxNodeId ? 0L : x.minNodeId - nodeId);
+          needBlobs.Add(lastBlob);
+        }
+      }
+
+      var blobDecoder = BlobSmtDecoder(needBlobs, (blob, buf) =>
+      {
+        try
+        {
+          OsmNode[] tmp;
+          int len = PbfFast.DecodePrimitiveBlock(buf, 0, blob, out tmp);
+          if (len != blob.rawSize) throw new PbfParseException();
+          return tmp;
+        }
+        catch
+        {
+          return null;
+        }
+      }).GetEnumerator();
+
+      OsmNode[] nodes = null;
+      var tmpNodes = new List<OsmNode[]>();
+      for (int w = 0; w < searchNodes.Length; w++)
+      {
+        long nodeId = searchNodes[w].Key;
+
+        if (nodes == null || nodes[nodes.Length - 1].id < nodeId)
+        {
+          nodes = null;
+          for (int i = 0; i < tmpNodes.Count; i++)
+          {
+            if (nodeId >= tmpNodes[i].First().id && nodeId <= tmpNodes[i].Last().id)
+            {
+              nodes = tmpNodes[i];
+              tmpNodes.RemoveAt(i);
+              break;
+            }
+          }
+          while (nodes == null)
+          {
+            blobDecoder.MoveNext();
+            nodes = blobDecoder.Current;
+            if (nodeId < nodes.First().id || nodeId > nodes.Last().id)
+            {
+              tmpNodes.Add(nodes);
+              nodes = null;
+            }
+          }
+
+          Console.WriteLine("read nodes: {0:N0} / {1:N0}", w + 1, searchNodes.Length);
+        }
+
+        result[searchNodes[w].Value] = nodes.BinarySearchSingle(x => x.id - nodeId);
+      }
+
+      return result;
+    }
     #endregion
 
     #region # public OsmWay[] ReadWays(params long[] wayIds) // liest ein oder mehrere Wege ein und gibt die Ergebnisse in entsprechender Reihenfolge zurück
@@ -196,6 +273,105 @@ namespace OsmFastPbf
           var buf = FetchBlob(wayBlob);
           int len = PbfFast.DecodePrimitiveBlock(buf, 0, wayBlob, out ways);
           if (len != wayBlob.rawSize) throw new PbfParseException();
+        }
+
+        result[searchWays[w].Value] = ways.BinarySearchSingle(x => x.id - wayId);
+      }
+
+      return result;
+    }
+
+    IEnumerable<T[]> BlobSmtDecoder<T>(List<OsmBlob> blobs, Func<OsmBlob, byte[], T[]> decode)
+    {
+      return blobs.SelectParallelEnumerable(blob =>
+      {
+        // --- lesen ---
+        var zlibData = new byte[blob.zlibLen];
+        lock (pbfReader)
+        {
+          int pbfOfs = pbfReader.PrepareBuffer(blob.pbfOfs + blob.zlibOfs, blob.zlibLen);
+          Array.Copy(pbfReader.buffer, pbfOfs, zlibData, 0, zlibData.Length);
+        }
+
+        // --- entpacken ---
+        var buf = new byte[blob.rawSize + 1];
+        int bytes = ProtoBuf.FastInflate(zlibData, 0, blob.zlibLen, buf, 0);
+        if (bytes != blob.rawSize) throw new PbfParseException();
+        buf[bytes] = 0;
+
+        // --- decoden ---
+        return decode(blob, buf);
+      }, priority: ThreadPriority.Lowest);
+    }
+
+    /// <summary>
+    /// liest ein oder mehrere Wege ein und gibt die Ergebnisse in entsprechender Reihenfolge zurück
+    /// </summary>
+    /// <param name="wayIds">Wege-IDs, welche abgefragt werden sollen</param>
+    /// <returns>Array mit den abgefragten Wegen</returns>
+    public OsmWay[] ReadWays2(params long[] wayIds)
+    {
+      var result = new OsmWay[wayIds.Length];
+
+      var searchWays = Enumerable.Range(0, wayIds.Length).Select(i => new KeyValuePair<long, int>(wayIds[i], i)).ToArray(wayIds.Length);
+      Array.Sort(searchWays, (x, y) => x.Key.CompareTo(y.Key));
+
+      var needBlobs = new List<OsmBlob>();
+      var lastBlob = nodeIndex[0];
+      foreach (var wayId in searchWays.Select(x => x.Key))
+      {
+        if (wayId > lastBlob.maxWayId || wayId < lastBlob.minWayId)
+        {
+          lastBlob = wayIndex.BinarySearchSingle(x => wayId >= x.minWayId && wayId <= x.maxWayId ? 0L : x.minWayId - wayId);
+          needBlobs.Add(lastBlob);
+        }
+      }
+
+      var blobDecoder = BlobSmtDecoder(needBlobs, (blob, buf) =>
+      {
+        try
+        {
+          OsmWay[] tmp;
+          int len = PbfFast.DecodePrimitiveBlock(buf, 0, blob, out tmp);
+          if (len != blob.rawSize) throw new PbfParseException();
+          return tmp;
+        }
+        catch
+        {
+          return null;
+        }
+      }).GetEnumerator();
+
+      OsmWay[] ways = null;
+      var tmpWays = new List<OsmWay[]>();
+      for (int w = 0; w < searchWays.Length; w++)
+      {
+        long wayId = searchWays[w].Key;
+
+        if (ways == null || ways[ways.Length - 1].id < wayId)
+        {
+          ways = null;
+          for (int i = 0; i < tmpWays.Count; i++)
+          {
+            if (wayId >= tmpWays[i].First().id && wayId <= tmpWays[i].Last().id)
+            {
+              ways = tmpWays[i];
+              tmpWays.RemoveAt(i);
+              break;
+            }
+          }
+          while (ways == null)
+          {
+            blobDecoder.MoveNext();
+            ways = blobDecoder.Current;
+            if (wayId < ways.First().id || wayId > ways.Last().id)
+            {
+              tmpWays.Add(ways);
+              ways = null;
+            }
+          }
+
+          Console.WriteLine("read ways: {0:N0} / {1:N0}", w + 1, searchWays.Length);
         }
 
         result[searchWays[w].Value] = ways.BinarySearchSingle(x => x.id - wayId);

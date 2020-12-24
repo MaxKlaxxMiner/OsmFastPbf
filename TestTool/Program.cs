@@ -35,11 +35,11 @@ namespace TestTool
     {
       //BufferTest(); return;
       //HgtTest(); return;
-      //ParseTest(); return;
+      ParseTest(); return;
       //DrawTest(); return;
       //ConverterTest_1_ExtractNodes();
       //ConverterTest_2_SortNodes();
-      ConverterTest_3_MergeNodes();
+      //ConverterTest_3_MergeNodes();
     }
   }
 }

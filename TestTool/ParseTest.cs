@@ -17,10 +17,10 @@ namespace TestTool
       using (var pbf = new OsmPbfReader(PbfPath))
       {
         //long testRelationID = 418713; // Herrnhut (Germany)
-        //long testRelationID = 62422; // Berlin
+        long testRelationID = 62422; // Berlin
         //long testRelationID = 62504; // Brandenburg (Germany) - https://www.openstreetmap.org/relation/62504
         //long testRelationID = 1434381; // Insel Rügen (Germany)
-        long testRelationID = 51477; // Germany
+        //long testRelationID = 51477; // Germany
         //long testRelationID = 2214684; // La Gomera (Canarias)
         //long testRelationID = 2182003; // Menorca (Balearic Islands)
         //long testRelationID = 11775386; // La Palma (Canarias)
@@ -42,10 +42,10 @@ namespace TestTool
           break;
         }
 
-        var ways = pbf.ReadWays(relations.SelectMany(r => r.members.Where(x => x.type == MemberType.Way).Select(x => x.id)).ToArray());
+        var ways = pbf.ReadWays2(relations.SelectMany(r => r.members.Where(x => x.type == MemberType.Way).Select(x => x.id)).ToArray());
         Array.Sort(ways, (x, y) => x.id.CompareTo(y.id));
 
-        var nodes = pbf.ReadNodes(relations.SelectMany(r => r.members.Where(x => x.type == MemberType.Node).Select(x => x.id)).Concat(ways.SelectMany(w => w.nodeIds)).ToArray());
+        var nodes = pbf.ReadNodes2(relations.SelectMany(r => r.members.Where(x => x.type == MemberType.Node).Select(x => x.id)).Concat(ways.SelectMany(w => w.nodeIds)).ToArray());
         Array.Sort(nodes, (x, y) => x.id.CompareTo(y.id));
 
         Console.WriteLine("nodes: {0:N0}", nodes.Length);
