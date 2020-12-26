@@ -14,6 +14,7 @@ namespace TestTool
   {
     static void ConverterTest_1_ExtractNodes()
     {
+      Directory.CreateDirectory("../tmp");
       using (var wdatRaw = File.Create("../tmp/node_rawfull.dat"))
       using (var wdatRawIndex = File.Create("../tmp/node_rawfull_index.dat"))
       using (var pbf = new OsmPbfReader(PbfPath))
@@ -39,7 +40,6 @@ namespace TestTool
         foreach (var node in pbf.ReadAllNodes())
         {
           totalPos++;
-
           var gpsPos = new GpsPos(node);
 
           rawLen += ProtoBuf.WriteVarInt(rawBuf, rawLen, ProtoBuf.UnsignedInt64(node.id - rawId));
