@@ -2,6 +2,7 @@
 // ReSharper disable RedundantUsingDirective
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -70,6 +71,8 @@ namespace OsmFastPbf
     #endregion
 
     #region # // --- SMT Decoder ---
+    public static List<long> times = new List<long>();
+
     static readonly Dictionary<int, byte[]> SmtCache = new Dictionary<int, byte[]>();
     IEnumerable<T[]> BlobSmtDecoder<T>(IList<OsmBlob> blobs, Func<OsmBlob, byte[], T[]> decode)
     {
@@ -88,10 +91,19 @@ namespace OsmFastPbf
         }
 
         // --- lesen ---
+        var tim = Stopwatch.StartNew();
+        if (pbfReader == null) return new T[0];
         lock (pbfReader)
         {
           int pbfOfs = pbfReader.PrepareBuffer(blob.pbfOfs + blob.zlibOfs, blob.zlibLen);
-          Array.Copy(pbfReader.buffer, pbfOfs, buf, 16777216, blob.zlibLen);
+          var b = pbfReader.buffer;
+          if (b == null) return new T[0];
+          Array.Copy(b, pbfOfs, buf, 16777216, blob.zlibLen);
+        }
+        tim.Stop();
+        lock (times)
+        {
+          times.Add(tim.ElapsedMilliseconds);
         }
 
         // --- entpacken ---
@@ -235,6 +247,69 @@ namespace OsmFastPbf
         {
           yield return node;
         }
+      }
+    }
+
+    public IEnumerable<OsmNode[]> ReadAllNodes2()
+    {
+      var blobDecoder = BlobSmtDecoder(nodeIndex, (blob, buf) =>
+      {
+        try
+        {
+          OsmNode[] tmp;
+          int len = PbfFast.DecodePrimitiveBlock(buf, 0, blob, out tmp);
+          if (len != blob.rawSize) throw new PbfParseException();
+          return tmp;
+        }
+        catch
+        {
+          return null;
+        }
+      }).GetEnumerator();
+
+      OsmNode[] nodes = null;
+      var tmpNodes = new List<OsmNode[]>();
+      foreach (var nodeBlob in nodeIndex)
+      {
+        if (nodes == null || nodes[0].id != nodeBlob.minNodeId)
+        {
+          nodes = null;
+          for (int i = 0; i < tmpNodes.Count; i++)
+          {
+            if (tmpNodes[i][0].id == nodeBlob.minNodeId)
+            {
+              nodes = tmpNodes[i];
+              tmpNodes.RemoveAt(i);
+              break;
+            }
+          }
+          while (nodes == null)
+          {
+            blobDecoder.MoveNext();
+            nodes = blobDecoder.Current;
+            if (nodes[0].id != nodeBlob.minNodeId)
+            {
+              tmpNodes.Add(nodes);
+              nodes = null;
+            }
+          }
+        }
+
+        yield return nodes;
+      }
+    }
+
+    public IEnumerable<OsmNode[]> ReadAllNodes3()
+    {
+      foreach (var blob in BlobSmtDecoder(nodeIndex, (blob, buf) =>
+      {
+        OsmNode[] tmp;
+        int len = PbfFast.DecodePrimitiveBlock(buf, 0, blob, out tmp);
+        if (len != blob.rawSize) throw new PbfParseException();
+        return tmp;
+      }))
+      {
+        yield return blob;
       }
     }
     #endregion
