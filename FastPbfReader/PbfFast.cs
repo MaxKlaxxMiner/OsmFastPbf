@@ -842,106 +842,6 @@ namespace OsmFastPbf
       return len;
     }
 
-    static int DecodeDenseNodes(byte[] buf, int ofs, string[] stringTable, out OsmNode[] gpsNodes)
-    {
-      /*****
-       * message DenseNodes
-       * {
-       *   repeated sint64 id = 1 [packed = true]; // DELTA coded
-       *   
-       *   //repeated Info info = 4;
-       *   optional DenseInfo denseinfo = 5;
-       *   
-       *   repeated sint64 lat = 8 [packed = true]; // DELTA coded
-       *   repeated sint64 lon = 9 [packed = true]; // DELTA coded
-       *   
-       *   // Special packing of keys and vals into one array. May be empty if all nodes in this block are tagless.
-       *   repeated int32 keys_vals = 10 [packed = true];
-       * }
-       *****/
-
-      int len = 0;
-      ulong dataLen;
-      len += ProtoBuf.ReadVarInt(buf, ofs + len, out dataLen);
-      int endLen = len + (int)dataLen;
-      long[] id;
-      long[] lat = null;
-      long[] lon = null;
-
-      // --- repeated sint64 id = 1 [packed = true]; // DELTA coded ---
-      if (buf[ofs + len] == (1 << 3 | 2))
-      {
-        len++;
-        len += ProtoBuf.DecodePackedSInt64Delta(buf, ofs + len, out id);
-      }
-      else
-      {
-        id = new long[0];
-      }
-
-      // --- repeated Info info = 4; ---
-      if (buf[ofs + len] == (4 << 3 | 2)) throw new NotSupportedException();
-
-      // --- optional DenseInfo denseinfo = 5; ---
-      if (buf[ofs + len] == (5 << 3 | 2))
-      {
-        len++;
-        len += DecodeDenseInfo(buf, ofs + len, id.Length);
-      }
-
-      // --- repeated sint64 lat = 8 [packed = true]; // DELTA coded ---
-      if (buf[ofs + len] == (8 << 3 | 2))
-      {
-        len++;
-        len += ProtoBuf.DecodePackedSInt64Delta(buf, ofs + len, out lat, id.Length);
-      }
-
-      // --- repeated sint64 lon = 9 [packed = true]; // DELTA coded ---
-      if (buf[ofs + len] == (9 << 3 | 2))
-      {
-        len++;
-        len += ProtoBuf.DecodePackedSInt64Delta(buf, ofs + len, out lon, id.Length);
-      }
-
-      // --- repeated int32 keys_vals = 10 [packed = true]; ---
-      int[] nodeKeys;
-      if (buf[ofs + len] == (10 << 3 | 2))
-      {
-        len++;
-        len += ProtoBuf.DecodePackedInt32(buf, ofs + len, out nodeKeys);
-      }
-      else
-      {
-        nodeKeys = new int[0];
-      }
-
-      if (len != endLen) throw new PbfParseException();
-
-      var liBuf = new KeyValuePair<string, string>[256];
-      gpsNodes = new OsmNode[id.Length];
-      for (int i = 0, nodeIndex = 0; i < nodeKeys.Length; i++, nodeIndex++)
-      {
-        int li = 0;
-        while (nodeKeys[i] != 0)
-        {
-          liBuf[li++] = new KeyValuePair<string, string>(stringTable[nodeKeys[i]], stringTable[nodeKeys[i + 1]]);
-          i += 2;
-        }
-        if (li > 0)
-        {
-          var t = new KeyValuePair<string, string>[li];
-          Array.Copy(liBuf, 0, t, 0, t.Length);
-          gpsNodes[nodeIndex] = new OsmNode(id[nodeIndex], (int)lat[nodeIndex], (int)lon[nodeIndex], t);
-        }
-        else
-        {
-          gpsNodes[nodeIndex] = new OsmNode(id[nodeIndex], (int)lat[nodeIndex], (int)lon[nodeIndex], null);
-        }
-      }
-
-      return len;
-    }
-
     static int DecodeDenseNodes(byte[] buf, int ofs, string[] stringTable, OsmNode[] nodes, ref int nodesOfs)
     {
       /*****
@@ -1042,59 +942,6 @@ namespace OsmFastPbf
       return len;
     }
 
-    static int DecodePrimitiveGroup(byte[] buf, int ofs, string[] stringTable, out OsmNode[] nodes)
-    {
-      /*****
-       * message PrimitiveGroup
-       * {
-       *   repeated Node nodes = 1;
-       *   optional DenseNodes dense = 2;
-       *   repeated Way ways = 3;
-       *   repeated Relation relations = 4;
-       *   repeated ChangeSet changesets = 5;
-       * }
-       *****/
-
-      int len = 0;
-
-      // --- repeated Node nodes = 1; ---
-      if (buf[ofs + len] == (1 << 3 | 2))
-      {
-        throw new NotSupportedException();
-      }
-
-      // --- optional DenseNodes dense = 2; ---
-      if (buf[ofs + len] == (2 << 3 | 2))
-      {
-        len++;
-        len += DecodeDenseNodes(buf, ofs + len, stringTable, out nodes);
-      }
-      else
-      {
-        nodes = new OsmNode[0];
-      }
-
-      // --- repeated Way ways = 3; ---
-      if (buf[ofs + len] == (3 << 3 | 2))
-      {
-        throw new NotSupportedException();
-      }
-
-      // --- repeated Relation relations = 4; ---
-      if (buf[ofs + len] == (4 << 3 | 2))
-      {
-        throw new NotSupportedException();
-      }
-
-      // --- repeated ChangeSet changesets = 5; ---
-      if (buf[ofs + len] == (5 << 3 | 2))
-      {
-        throw new NotSupportedException();
-      }
-
-      return len;
-    }
-
     static int DecodePrimitiveGroup(byte[] buf, int ofs, string[] stringTable, OsmNode[] nodes, ref int nodesOfs)
     {
       /*****
@@ -1121,10 +968,6 @@ namespace OsmFastPbf
       {
         len++;
         len += DecodeDenseNodes(buf, ofs + len, stringTable, nodes, ref nodesOfs);
-      }
-      else
-      {
-        nodes = new OsmNode[0];
       }
 
       // --- repeated Way ways = 3; ---
