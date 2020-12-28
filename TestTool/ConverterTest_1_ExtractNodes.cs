@@ -59,33 +59,34 @@ namespace TestTool
             rawPos = 0;
           }
 
-          if (node.values.Length > 0)
-          {
-            cc++;
-            if ((ushort)cc == 0) Console.WriteLine(cc.ToString("N0") + " (" + (100.0 / totalSum * totalPos).ToString("N2") + " %) - " + (len / 1048576.0).ToString("N1") + " MByte / " + (wdatRaw.Length / 1048576.0).ToString("N1") + " MByte");
-            len += ProtoBuf.WriteVarInt(buf, len, ProtoBuf.UnsignedInt64(node.id - lastId));
-            lastId = node.id;
-            long nextPos = gpsPos.Int64Pos;
-            len += ProtoBuf.WriteVarInt(buf, len, ProtoBuf.UnsignedInt64(nextPos - lastPos));
-            lastPos = nextPos;
-            len += ProtoBuf.WriteVarInt(buf, len, (uint)node.values.Length);
-            foreach (var v in node.values)
-            {
-              len += ProtoBuf.WriteString(buf, len, v.Key);
-              len += ProtoBuf.WriteString(buf, len, v.Value);
-            }
-            if (len > buf.Length - 65536)
-            {
-              block++;
-              using (var wdat = File.Create("../tmp/node_block_" + block + "_" + lastId + ".dat"))
-              {
-                wdat.Write(buf, 0, len);
-                len = 0;
-                lastId = 0;
-                lastPos = 0;
-              }
-            }
-          }
+          //todo
+          //if (node.values.Length > 0)
+          //{
+          //  cc++;
+          //  if ((ushort)cc == 0) Console.WriteLine(cc.ToString("N0") + " (" + (100.0 / totalSum * totalPos).ToString("N2") + " %) - " + (len / 1048576.0).ToString("N1") + " MByte / " + (wdatRaw.Length / 1048576.0).ToString("N1") + " MByte");
+          //  len += ProtoBuf.WriteVarInt(buf, len, ProtoBuf.UnsignedInt64(node.id - lastId));
+          //  lastId = node.id;
+          //  long nextPos = gpsPos.Int64Pos;
+          //  len += ProtoBuf.WriteVarInt(buf, len, ProtoBuf.UnsignedInt64(nextPos - lastPos));
+          //  lastPos = nextPos;
+          //  len += ProtoBuf.WriteVarInt(buf, len, (uint)node.values.Length);
+          //  foreach (var v in node.values)
+          //  {
+          //    len += ProtoBuf.WriteString(buf, len, v.Key);
+          //    len += ProtoBuf.WriteString(buf, len, v.Value);
+          //  }
+          //  if (len > buf.Length - 65536)
+          //  {
+          //    block++;
+          //    using (var wdat = File.Create("../tmp/node_block_" + block + "_" + lastId + ".dat"))
+          //    {
+          //      wdat.Write(buf, 0, len);
+          //      len = 0;
+          //      lastId = 0;
+          //      lastPos = 0;
+          //    }
+          //  }
+          //}
         }
         if (rawLen > 0)
         {

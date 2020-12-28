@@ -71,7 +71,6 @@ namespace TestTool
             break;
           }
         }
-        //Thread.Sleep(1000);
       }
     }
 

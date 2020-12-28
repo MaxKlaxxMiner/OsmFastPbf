@@ -62,6 +62,15 @@ namespace OsmFastPbf
     /// </summary>
     public void Dispose()
     {
+      lock (runningThreads)
+      {
+        foreach (var th in runningThreads)
+        {
+          if (th.IsAlive && th.ManagedThreadId != Thread.CurrentThread.ManagedThreadId) th.Abort();
+        }
+        runningThreads.Clear();
+      }
+
       if (pbfReader != null)
       {
         pbfReader.Dispose();
@@ -71,12 +80,14 @@ namespace OsmFastPbf
     #endregion
 
     #region # // --- SMT Decoder ---
-    public static List<long> times = new List<long>();
+    public static readonly List<long> times = new List<long>();
 
     static readonly Dictionary<int, byte[]> SmtCache = new Dictionary<int, byte[]>();
+    static readonly List<Thread> runningThreads = new List<Thread>();
     IEnumerable<T[]> BlobSmtDecoder<T>(IList<OsmBlob> blobs, Func<OsmBlob, byte[], T[]> decode)
     {
       return blobs.SelectParallelEnumerable(blob =>
+      //return blobs.Select(blob =>
       {
         // --- Thread-Buffer abfragen ---
         int threadId = Thread.CurrentThread.ManagedThreadId;
@@ -88,17 +99,18 @@ namespace OsmFastPbf
             buf = new byte[16777216 * 2];
             SmtCache.Add(threadId, buf);
           }
+          lock (runningThreads)
+          {
+            runningThreads.Add(Thread.CurrentThread);
+          }
         }
 
         // --- lesen ---
         var tim = Stopwatch.StartNew();
-        if (pbfReader == null) return new T[0];
         lock (pbfReader)
         {
           int pbfOfs = pbfReader.PrepareBuffer(blob.pbfOfs + blob.zlibOfs, blob.zlibLen);
-          var b = pbfReader.buffer;
-          if (b == null) return new T[0];
-          Array.Copy(b, pbfOfs, buf, 16777216, blob.zlibLen);
+          Array.Copy(pbfReader.buffer, pbfOfs, buf, 16777216, blob.zlibLen);
         }
         tim.Stop();
         lock (times)
@@ -114,6 +126,7 @@ namespace OsmFastPbf
         // --- decoden ---
         return decode(blob, buf);
       }, priority: ThreadPriority.Lowest);
+      //});
     }
     #endregion
 

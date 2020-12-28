@@ -917,23 +917,26 @@ namespace OsmFastPbf
 
       if (len != endLen) throw new PbfParseException();
 
-      var strTmp = new List<KeyValuePair<string, string>[]>();
-      var empty = new KeyValuePair<string, string>[0];
-      for (int i = 0; i < nodeKeys.Length; i++)
+      var liBuf = new KeyValuePair<string, string>[256];
+      gpsNodes = new OsmNode[id.Length];
+      for (int i = 0, nodeIndex = 0; i < nodeKeys.Length; i++, nodeIndex++)
       {
-        var li = new List<KeyValuePair<string, string>>();
+        int li = 0;
         while (nodeKeys[i] != 0)
         {
-          li.Add(new KeyValuePair<string, string>(stringTable[nodeKeys[i]], stringTable[nodeKeys[i + 1]]));
+          liBuf[li++] = new KeyValuePair<string, string>(stringTable[nodeKeys[i]], stringTable[nodeKeys[i + 1]]);
           i += 2;
         }
-        strTmp.Add(li.Count > 0 ? li.ToArray() : empty);
-      }
-
-      gpsNodes = new OsmNode[id.Length];
-      for (int i = 0; i < gpsNodes.Length; i++)
-      {
-        gpsNodes[i] = new OsmNode(id[i], (int)lat[i], (int)lon[i], strTmp[i]);
+        if (li > 0)
+        {
+          var t = new KeyValuePair<string, string>[li];
+          Array.Copy(liBuf, 0, t, 0, t.Length);
+          gpsNodes[nodeIndex] = new OsmNode(id[nodeIndex], (int)lat[nodeIndex], (int)lon[nodeIndex], t);
+        }
+        else
+        {
+          gpsNodes[nodeIndex] = new OsmNode(id[nodeIndex], (int)lat[nodeIndex], (int)lon[nodeIndex], null);
+        }
       }
 
       return len;

@@ -9,6 +9,7 @@ namespace OsmFastPbf
     public readonly int latCode;
     public readonly int lonCode;
     public readonly KeyValuePair<string, string>[] values;
+    static readonly KeyValuePair<string, string>[] emptyValues = new KeyValuePair<string, string>[0];
     public double Latitude { get { return latCode / 10000000.0; } }
     public double Longitude { get { return lonCode / 10000000.0; } }
     public OsmNode(long id, int latCode, int lonCode, KeyValuePair<string, string>[] values)
@@ -16,7 +17,7 @@ namespace OsmFastPbf
       this.id = id;
       this.latCode = latCode;
       this.lonCode = lonCode;
-      this.values = values;
+      this.values = values ?? emptyValues;
     }
     public override string ToString()
     {
