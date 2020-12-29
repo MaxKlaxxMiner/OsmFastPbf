@@ -917,7 +917,7 @@ namespace OsmFastPbf
 
       if (len != endLen) throw new PbfParseException();
 
-      var liBuf = new KeyValuePair<string, string>[256];
+      var liBuf = new KeyValuePair<string, string>[1024];
       for (int i = 0, nodeIndex = 0; i < nodeKeys.Length; i++, nodeIndex++)
       {
         int li = 0;

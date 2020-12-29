@@ -43,6 +43,7 @@
   <ItemGroup>
     <Compile Include="FastPbfReader\FastPbfReader.cs" />
     <Compile Include="FastPbfReader\Helper\LinqHelper.cs" />
+    <Compile Include="FastPbfReader\MemArray.cs" />
     <Compile Include="FastPbfReader\PbfFast.cs" />
     <Compile Include="FastPbfReader\Structs\BlobTask.cs" />
     <Compile Include="FastPbfReader\Structs\GpsPos.cs" />
