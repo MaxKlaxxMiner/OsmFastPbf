@@ -75,6 +75,21 @@ namespace TestTool
       }
     }
 
+    static void MemTest()
+    {
+      var tim = Stopwatch.StartNew();
+      for (int i = 0; i < 10000; i++)
+      {
+        //var mem = new OsmNode[1000000];
+        var mem = new MemArray<OsmNode>(1000000);
+        mem[mem.Length / 2] = new OsmNode(1, 2, 3, null);
+        mem[mem.Length - 1] = new OsmNode(2, 3, 4, null);
+        mem.Dispose();
+      }
+      tim.Stop();
+      Console.WriteLine("{0:N0} ms", tim.ElapsedMilliseconds);
+    }
+
     static void Main(string[] args)
     {
       //BufferTest(); return;
@@ -84,7 +99,8 @@ namespace TestTool
       //ConverterTest_1_ExtractNodes();
       //ConverterTest_2_SortNodes();
       //ConverterTest_3_MergeNodes();
-      SpeedCheck();
+      //SpeedCheck();
+      MemTest();
     }
   }
 }
