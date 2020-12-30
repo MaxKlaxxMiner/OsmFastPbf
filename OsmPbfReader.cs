@@ -86,8 +86,8 @@ namespace OsmFastPbf
     static readonly List<Thread> runningThreads = new List<Thread>();
     IEnumerable<T[]> BlobSmtDecoder<T>(IList<OsmBlob> blobs, Func<OsmBlob, byte[], T[]> decode)
     {
-      return blobs.SelectParallelEnumerable(blob =>
-      //return blobs.Select(blob =>
+      //return blobs.SelectParallelEnumerable(blob =>
+      return blobs.Select(blob =>
       {
         // --- Thread-Buffer abfragen ---
         int threadId = Thread.CurrentThread.ManagedThreadId;
@@ -125,8 +125,52 @@ namespace OsmFastPbf
 
         // --- decoden ---
         return decode(blob, buf);
-      }, priority: ThreadPriority.Lowest);
-      //});
+        //}, priority: ThreadPriority.Lowest);
+      });
+    }
+    IEnumerable<MemArray<T>> BlobSmtDecoder<T>(IList<OsmBlob> blobs, Func<OsmBlob, byte[], MemArray<T>> decode) where T : struct
+    {
+      //return blobs.SelectParallelEnumerable(blob =>
+      return blobs.Select(blob =>
+      {
+        // --- Thread-Buffer abfragen ---
+        int threadId = Thread.CurrentThread.ManagedThreadId;
+        byte[] buf;
+        lock (SmtCache)
+        {
+          if (!SmtCache.TryGetValue(threadId, out buf))
+          {
+            buf = new byte[16777216 * 2];
+            SmtCache.Add(threadId, buf);
+          }
+          lock (runningThreads)
+          {
+            runningThreads.Add(Thread.CurrentThread);
+          }
+        }
+
+        // --- lesen ---
+        var tim = Stopwatch.StartNew();
+        lock (pbfReader)
+        {
+          int pbfOfs = pbfReader.PrepareBuffer(blob.pbfOfs + blob.zlibOfs, blob.zlibLen);
+          Array.Copy(pbfReader.buffer, pbfOfs, buf, 16777216, blob.zlibLen);
+        }
+        tim.Stop();
+        lock (times)
+        {
+          times.Add(tim.ElapsedMilliseconds);
+        }
+
+        // --- entpacken ---
+        int bytes = ProtoBuf.FastInflate(buf, 16777216, blob.zlibLen, buf, 0);
+        if (bytes != blob.rawSize) throw new PbfParseException();
+        buf[bytes] = 0;
+
+        // --- decoden ---
+        return decode(blob, buf);
+      //}, 8, priority: ThreadPriority.Lowest);
+      });
     }
     #endregion
 
@@ -317,6 +361,20 @@ namespace OsmFastPbf
       foreach (var blob in BlobSmtDecoder(nodeIndex, (blob, buf) =>
       {
         OsmNode[] tmp;
+        int len = PbfFast.DecodePrimitiveBlock(buf, 0, blob, out tmp);
+        if (len != blob.rawSize) throw new PbfParseException();
+        return tmp;
+      }))
+      {
+        yield return blob;
+      }
+    }
+
+    public IEnumerable<MemArray<OsmNode>> ReadAllNodes4()
+    {
+      foreach (var blob in BlobSmtDecoder(nodeIndex, (blob, buf) =>
+      {
+        MemArray<OsmNode> tmp;
         int len = PbfFast.DecodePrimitiveBlock(buf, 0, blob, out tmp);
         if (len != blob.rawSize) throw new PbfParseException();
         return tmp;

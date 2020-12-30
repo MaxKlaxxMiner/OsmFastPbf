@@ -49,7 +49,7 @@ namespace TestTool
         //}
         var blockTimes = new List<long>();
         var tim = Stopwatch.StartNew();
-        foreach (var nodes in pbf.ReadAllNodes3())
+        foreach (var nodes in pbf.ReadAllNodes4())
         {
           blockTimes.Add(tim.ElapsedMilliseconds);
           tim.Restart();
@@ -68,9 +68,9 @@ namespace TestTool
           //}
           if (count > 50000000)
           {
-            //File.WriteAllLines(@"../tmp/
             break;
           }
+          nodes.Dispose();
         }
       }
     }
@@ -99,8 +99,8 @@ namespace TestTool
       //ConverterTest_1_ExtractNodes();
       //ConverterTest_2_SortNodes();
       //ConverterTest_3_MergeNodes();
-      //SpeedCheck();
-      MemTest();
+      SpeedCheck();
+      //MemTest();
     }
   }
 }
