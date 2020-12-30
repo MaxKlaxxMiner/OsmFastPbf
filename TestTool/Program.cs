@@ -66,10 +66,10 @@ namespace TestTool
           //    Console.WriteLine(count.ToString("N0") + " / " + totalCount.ToString("N0"));
           //  }
           //}
-          if (count > 50000000)
-          {
-            break;
-          }
+          //if (count > 50000000)
+          //{
+          //  break;
+          //}
           nodes.Dispose();
         }
       }

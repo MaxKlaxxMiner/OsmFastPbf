@@ -864,9 +864,7 @@ namespace OsmFastPbf
       ulong dataLen;
       len += ProtoBuf.ReadVarInt(buf, ofs + len, out dataLen);
       int endLen = len + (int)dataLen;
-      long[] id;
-      long[] lat = null;
-      long[] lon = null;
+      MemArray<long> id, lat, lon;
 
       // --- repeated sint64 id = 1 [packed = true]; // DELTA coded ---
       if (buf[ofs + len] == (1 << 3 | 2))
@@ -876,7 +874,7 @@ namespace OsmFastPbf
       }
       else
       {
-        id = new long[0];
+        id = new MemArray<long>(0);
       }
 
       // --- repeated Info info = 4; ---
@@ -895,12 +893,20 @@ namespace OsmFastPbf
         len++;
         len += ProtoBuf.DecodePackedSInt64Delta(buf, ofs + len, out lat, id.Length);
       }
+      else
+      {
+        lat = new MemArray<long>(0);
+      }
 
       // --- repeated sint64 lon = 9 [packed = true]; // DELTA coded ---
       if (buf[ofs + len] == (9 << 3 | 2))
       {
         len++;
         len += ProtoBuf.DecodePackedSInt64Delta(buf, ofs + len, out lon, id.Length);
+      }
+      else
+      {
+        lon = new MemArray<long>(0);
       }
 
       // --- repeated int32 keys_vals = 10 [packed = true]; ---
@@ -917,6 +923,17 @@ namespace OsmFastPbf
 
       if (len != endLen) throw new PbfParseException();
 
+      DecodeStringLists(stringTable, nodes, nodesOfs, nodeKeys, id.RawData, lat.RawData, lon.RawData);
+      nodesOfs += id.Length;
+      id.Dispose();
+      lat.Dispose();
+      lon.Dispose();
+
+      return len;
+    }
+
+    static void DecodeStringLists(string[] stringTable, OsmNode[] nodes, int nodesOfs, int[] nodeKeys, long[] id, long[] lat, long[] lon)
+    {
       var liBuf = new KeyValuePair<string, string>[1024];
       for (int i = 0, nodeIndex = 0; i < nodeKeys.Length; i++, nodeIndex++)
       {
@@ -926,6 +943,7 @@ namespace OsmFastPbf
           liBuf[li++] = new KeyValuePair<string, string>(stringTable[nodeKeys[i]], stringTable[nodeKeys[i + 1]]);
           i += 2;
         }
+
         if (li > 0)
         {
           var t = new KeyValuePair<string, string>[li];
@@ -937,9 +955,6 @@ namespace OsmFastPbf
           nodes[nodesOfs + nodeIndex] = new OsmNode(id[nodeIndex], (int)lat[nodeIndex], (int)lon[nodeIndex], null);
         }
       }
-      nodesOfs += id.Length;
-
-      return len;
     }
 
     static int DecodePrimitiveGroup(byte[] buf, int ofs, string[] stringTable, OsmNode[] nodes, ref int nodesOfs)

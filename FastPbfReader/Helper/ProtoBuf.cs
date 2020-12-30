@@ -313,6 +313,34 @@ namespace OsmFastPbf.Helper
       return len;
     }
 
+    public static int DecodePackedSInt64Delta(byte[] buf, int ofs, out MemArray<long> val)
+    {
+      int len = 0;
+      ulong dataLen;
+      len += ReadVarInt(buf, ofs + len, out dataLen);
+      int endLen = len + (int)dataLen;
+
+      var result = new MemArray<long>((int)dataLen);
+
+      ulong tmp;
+      len += ReadVarInt(buf, ofs + len, out tmp);
+      result[0] = SignedInt64(tmp);
+
+      int resultLen;
+      for (resultLen = 1; resultLen < result.Length && len < endLen; resultLen++)
+      {
+        len += ReadVarInt(buf, ofs + len, out tmp);
+        result[resultLen] = SignedInt64(tmp) + result[resultLen - 1];
+      }
+
+      result.Resize(resultLen);
+      val = result;
+
+      if (len != endLen) throw new PbfParseException();
+
+      return len;
+    }
+
     public static int DecodePackedSInt64Delta(byte[] buf, int ofs, out long[] val, int itemCount)
     {
       int len = 0;
@@ -339,6 +367,32 @@ namespace OsmFastPbf.Helper
       return len;
     }
 
+    public static int DecodePackedSInt64Delta(byte[] buf, int ofs, out MemArray<long> val, int itemCount)
+    {
+      int len = 0;
+      ulong dataLen;
+      len += ReadVarInt(buf, ofs + len, out dataLen);
+      int endLen = len + (int)dataLen;
+
+      var result = new MemArray<long>(itemCount);
+      var rs = result.RawData;
+
+      ulong tmp;
+      len += ReadVarInt(buf, ofs + len, out tmp);
+      rs[0] = SignedInt64(tmp);
+
+      for (int i = 1; len < endLen && i < rs.Length; i++)
+      {
+        len += ReadVarInt(buf, ofs + len, out tmp);
+        rs[i] = SignedInt64(tmp) + rs[i - 1];
+      }
+
+      val = result;
+
+      if (len != endLen) throw new PbfParseException();
+
+      return len;
+    }
     #endregion
 
     /// <summary>

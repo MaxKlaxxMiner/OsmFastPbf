@@ -27,7 +27,7 @@ namespace OsmFastPbf
     /// <summary>
     /// Anzahl der benutzbaren Elemente
     /// </summary>
-    readonly int count;
+    int count;
 
     /// <summary>
     /// Struktur eines reservierten Speicherblockes
@@ -135,6 +135,18 @@ namespace OsmFastPbf
       {
         return data;
       }
+    }
+
+    /// <summary>
+    /// kann die Größe des Arrays verkleinern bzw. vergrößern, wenn der Platz reichen sollte
+    /// </summary>
+    /// <param name="newCount">neue Größe des Arrays</param>
+    public void Resize(int newCount)
+    {
+      if (data == null) throw new ObjectDisposedException("data");
+      if (newCount < 0) throw new ArgumentOutOfRangeException("newCount");
+      if (newCount > data.Length) throw new OutOfMemoryException();
+      count = newCount;
     }
 
     #region # // --- IList ---

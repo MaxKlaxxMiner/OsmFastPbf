@@ -130,8 +130,8 @@ namespace OsmFastPbf
     }
     IEnumerable<MemArray<T>> BlobSmtDecoder<T>(IList<OsmBlob> blobs, Func<OsmBlob, byte[], MemArray<T>> decode) where T : struct
     {
-      //return blobs.SelectParallelEnumerable(blob =>
-      return blobs.Select(blob =>
+      return blobs.SelectParallelEnumerable(blob =>
+      //return blobs.Select(blob =>
       {
         // --- Thread-Buffer abfragen ---
         int threadId = Thread.CurrentThread.ManagedThreadId;
@@ -169,8 +169,8 @@ namespace OsmFastPbf
 
         // --- decoden ---
         return decode(blob, buf);
-      //}, 8, priority: ThreadPriority.Lowest);
-      });
+      }, priority: ThreadPriority.Lowest);
+      //});
     }
     #endregion
 
