@@ -1,11 +1,8 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-// ReSharper disable FieldCanBeMadeReadOnly.Local
-// ReSharper disable MemberCanBePrivate.Global
-// ReSharper disable UnusedType.Global
-// ReSharper disable NotAccessedField.Global
-// ReSharper disable FieldCanBeMadeReadOnly.Global
+using System.Linq;
+// ReSharper disable UnusedMember.Global
 
 namespace OsmFastPbf
 {
@@ -13,26 +10,106 @@ namespace OsmFastPbf
   /// Klasse zum schnellen reservieren von Arrays
   /// </summary>
   /// <typeparam name="T"></typeparam>
-  public class MemArray<T> : IList<T>, IDisposable where T : struct
+  public sealed class MemArray<T> : IList<T>, IDisposable where T : struct
   {
     /// <summary>
     /// Array mit den Rohdaten
     /// </summary>
     T[] data;
     /// <summary>
+    /// merkt sich die Größen-ID
+    /// </summary>
+    readonly int sizeId;
+    /// <summary>
+    /// merkt sich den benutzten Block
+    /// </summary>
+    readonly int blockIndex;
+    /// <summary>
     /// Anzahl der benutzbaren Elemente
     /// </summary>
     readonly int count;
 
     /// <summary>
+    /// Struktur eines reservierten Speicherblockes
+    /// </summary>
+    struct MemBlock
+    {
+      /// <summary>
+      /// merkt sich das Array, welches die Daten enthält
+      /// </summary>
+      public readonly T[] data;
+      /// <summary>
+      /// gibt an, ob der Block in Benutzung ist
+      /// </summary>
+      public readonly bool active;
+
+      /// <summary>
+      /// Konstruktor
+      /// </summary>
+      /// <param name="data">Daten-Array, welches reserviert wurde</param>
+      /// <param name="active">gibt an, ob der Block bereits benutzt wird</param>
+      public MemBlock(T[] data, bool active)
+      {
+        this.data = data;
+        this.active = active;
+      }
+
+      /// <summary>
+      /// gibt den Inhalt als lesbare Zeichenfolge zurück
+      /// </summary>
+      /// <returns>lesbare Zeichenfolge</returns>
+      public override string ToString()
+      {
+        return new { active, data = "[" + data.Length + "]" }.ToString();
+      }
+    }
+
+    /// <summary>
+    /// merkt sich alle bereits reservierten Speicherblöcke
+    /// </summary>
+    static readonly List<MemBlock>[] memBlocks = Enumerable.Range(0, 24).Select(x => new List<MemBlock>()).ToArray();
+
+    /// <summary>
     /// Konstruktor
     /// </summary>
     /// <param name="count">Anzahl der zu reservierenden Elemente</param>
-    /// <param name="clear">gibt an, ob das Array geleert werden soll (default: true)</param>
-    public MemArray(int count, bool clear = true)
+    /// <param name="clear">gibt an, ob das Array geleert werden soll (default: false)</param>
+    public MemArray(int count, bool clear = false)
     {
-      data = new T[count];
+      int size = 255;
+      int sizeId = 0;
+      while (size < count && size > 0)
+      {
+        size *= 2;
+        sizeId++;
+      }
+      if (size < 15) throw new OutOfMemoryException();
+
       this.count = count;
+      this.sizeId = sizeId;
+
+      var memList = memBlocks[sizeId];
+      lock (memList)
+      {
+        for (int i = 0; i < memList.Count; i++)
+        {
+          if (!memList[i].active)
+          {
+            data = memList[i].data;
+            if (clear) Array.Clear(data, 0, count);
+            blockIndex = i;
+            memList[i] = new MemBlock(data, true);
+            return;
+          }
+        }
+      }
+
+      data = new T[size];
+      lock (memList)
+      {
+        blockIndex = memList.Count;
+        memList.Add(new MemBlock(data, true));
+      }
     }
 
     /// <summary>
@@ -40,7 +117,33 @@ namespace OsmFastPbf
     /// </summary>
     public void Dispose()
     {
-      data = null;
+      if (data == null) return;
+      var memList = memBlocks[sizeId];
+      lock (memList)
+      {
+        memList[blockIndex] = new MemBlock(memList[blockIndex].data, false);
+        data = null;
+      }
+    }
+
+    /// <summary>
+    /// gibt den internen reservierten Speicherblock zurück (z.B. für schnellere Abfragen, ist oft größer als <see cref="Count"/>
+    /// </summary>
+    public T[] RawData
+    {
+      get
+      {
+        return data;
+      }
+    }
+
+    #region # // --- IList ---
+    /// <summary>
+    /// Destructor
+    /// </summary>
+    ~MemArray()
+    {
+      Dispose();
     }
 
     /// <summary>
@@ -55,15 +158,6 @@ namespace OsmFastPbf
       }
     }
 
-    /// <summary>
-    /// Destructor
-    /// </summary>
-    ~MemArray()
-    {
-      Dispose();
-    }
-
-    #region # // --- IList ---
     /// <summary>
     /// gibt eine Aufzählung der Elemente zurück
     /// </summary>
