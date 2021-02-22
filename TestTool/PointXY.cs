@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using OsmFastPbf;
+
 // ReSharper disable UnusedMember.Global
 // ReSharper disable MemberCanBePrivate.Global
 // ReSharper disable NotAccessedField.Global
@@ -32,6 +34,12 @@ namespace TestTool
         x = int.Parse(sp[0]);
         y = int.Parse(sp[1]);
       }
+    }
+
+    public PointXY(OsmNode node)
+    {
+      x = node.lonCode;
+      y = node.latCode;
     }
 
     public override string ToString()

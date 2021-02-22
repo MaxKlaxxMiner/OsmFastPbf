@@ -79,5 +79,39 @@ namespace TestTool
 
       ViewPicture(pic, PointFile);
     }
+
+    static void DrawTest(OsmNode[] nodes)
+    {
+      const int Height = 1400;
+      const int Padding = 10;
+
+      var points = nodes.Select(x => new PointXY(x)).ToArray();
+      int minX = points.Min(p => p.x);
+      int maxX = points.Max(p => p.x);
+      int minY = points.Min(p => p.y);
+      int maxY = points.Max(p => p.y);
+
+      double distX = GpsDistance((minY + (maxY - minY) / 2) / 10000000.0, minX / 10000000.0, (minY + (maxY - minY) / 2) / 10000000.0, maxX / 10000000.0);
+      double distY = GpsDistance(minY / 10000000.0, 0, maxY / 10000000.0, 0);
+
+      int width = (int)((Height - Padding - Padding) / distY * distX) + Padding + Padding;
+
+      var pic = new Bitmap(width, Height, PixelFormat.Format32bppRgb);
+      double mulX = (width - Padding - Padding) / (double)(maxX - minX);
+      double mulY = (Height - Padding - Padding) / (double)(maxY - minY);
+
+      //foreach (var p in points)
+      //{
+      //  int x = (int)((p.x - minX) * mulX) + Padding;
+      //  int y = Height - (int)((p.y - minY) * mulY) - Padding;
+      //  pic.SetPixel(x, y, Color.FromArgb(0x0080ff - 16777216));
+      //}
+
+      var g = Graphics.FromImage(pic);
+      //g.FillPolygon(new SolidBrush(Color.FromArgb(0x0080ff - 16777216)), points.Select(p => new Point((int)((p.x - minX) * mulX) + Padding, Height - (int)((p.y - minY) * mulY) - Padding)).ToArray());
+      g.DrawPolygon(new Pen(Color.FromArgb(0x0080ff - 16777216)), points.Select(p => new Point((int)((p.x - minX) * mulX) + Padding, Height - (int)((p.y - minY) * mulY) - Padding)).ToArray());
+
+      ViewPicture(pic, nodes.Length.ToString("N0") + " Lines");
+    }
   }
 }
