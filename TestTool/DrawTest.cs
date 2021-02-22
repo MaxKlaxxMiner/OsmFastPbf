@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -15,7 +16,7 @@ namespace TestTool
 {
   partial class Program
   {
-    static void ViewPicture(Image image, string title = "")
+    static void ViewPicture(Image image, string title = "", Action<Form, int, int> mouseMove = null)
     {
       var pic = new PictureBox
       {
@@ -29,6 +30,10 @@ namespace TestTool
         Text = title
       };
       form.Controls.Add(pic);
+      if (mouseMove != null)
+      {
+        pic.MouseMove += (sender, e) => mouseMove(form, e.X, e.Y);
+      }
       form.ShowDialog();
     }
 
@@ -80,12 +85,32 @@ namespace TestTool
       ViewPicture(pic, PointFile);
     }
 
-    static void DrawTest(OsmNode[] nodes)
+    static bool CheckPoint(long x, long y, long cx1, long cy1, long cx2, long cy2)
+    {
+      if (cy1 > cy2)
+      {
+        long t = cx1; cx1 = cx2; cx2 = t;
+        t = cy1; cy1 = cy2; cy2 = t;
+      }
+
+      y *= 2;
+      cy1 = cy1 * 2 + 1;
+      cy2 = cy2 * 2 + 1;
+
+      if (y < cy1 || y > cy2) return false;
+      if (cx1 > x && cx2 > x) return false;
+
+      long tx = (y - cy1) * (cx2 - cx1) / (cy2 - cy1) + cx1;
+
+      return tx <= x;
+    }
+
+    static void DrawTest(OsmNode[] nodes, List<Tuple<OsmNode, OsmNode>> polyLines, List<Tuple<int, int, List<Tuple<OsmNode, OsmNode>>>> stripes)
     {
       const int Height = 1400;
       const int Padding = 10;
 
-      var points = nodes.Select(x => new PointXY(x)).ToArray();
+      var points = nodes.Select(node => new PointXY(node)).ToArray();
       int minX = points.Min(p => p.x);
       int maxX = points.Max(p => p.x);
       int minY = points.Min(p => p.y);
@@ -100,18 +125,51 @@ namespace TestTool
       double mulX = (width - Padding - Padding) / (double)(maxX - minX);
       double mulY = (Height - Padding - Padding) / (double)(maxY - minY);
 
-      //foreach (var p in points)
-      //{
-      //  int x = (int)((p.x - minX) * mulX) + Padding;
-      //  int y = Height - (int)((p.y - minY) * mulY) - Padding;
-      //  pic.SetPixel(x, y, Color.FromArgb(0x0080ff - 16777216));
-      //}
-
       var g = Graphics.FromImage(pic);
       //g.FillPolygon(new SolidBrush(Color.FromArgb(0x0080ff - 16777216)), points.Select(p => new Point((int)((p.x - minX) * mulX) + Padding, Height - (int)((p.y - minY) * mulY) - Padding)).ToArray());
       g.DrawPolygon(new Pen(Color.FromArgb(0x0080ff - 16777216)), points.Select(p => new Point((int)((p.x - minX) * mulX) + Padding, Height - (int)((p.y - minY) * mulY) - Padding)).ToArray());
 
-      ViewPicture(pic, nodes.Length.ToString("N0") + " Lines");
+      //ViewPicture(pic, nodes.Length.ToString("N0") + " Lines");
+
+      ViewPicture(pic, nodes.Length.ToString("N0") + " Lines", (form, x, y) =>
+      {
+        long latCode = (long)((Height - y - Padding) / mulY) + minY;
+        long lonCode = (long)((x - Padding) / mulX) + minX;
+
+        int colli = 0;
+
+        var time = Stopwatch.StartNew();
+
+        for (int r = 0; r < 100; r++)
+        {
+          colli = 0;
+          foreach (var stripe in stripes)
+          {
+            if (latCode >= stripe.Item1 && latCode <= stripe.Item2)
+            {
+              foreach (var line in stripe.Item3)
+              {
+                if (CheckPoint(lonCode, latCode, line.Item1.lonCode, line.Item1.latCode, line.Item2.lonCode, line.Item2.latCode)) colli++;
+              }
+              break;
+            }
+          }
+
+          //foreach (var line in polyLines)
+          //{
+          //  if (CheckPoint(lonCode, latCode, line.Item1.lonCode, line.Item1.latCode, line.Item2.lonCode, line.Item2.latCode)) colli++;
+          //}
+        }
+
+        time.Stop();
+        double ms = time.ElapsedTicks * 1000.0 / Stopwatch.Frequency;
+
+        string txt = "lat: " + (latCode / 10000000.0).ToString("N5") + ", lon: " + (lonCode / 10000000.0).ToString("N5") + ", " + ms.ToString("N2") + " ms, colli: " + colli + (colli % 2 == 1 ? " #####" : "");
+
+        File.AppendAllText(@"C:\Users\Max\Desktop\prog\vacaVista\dummytest\log.txt", txt + "\r\n");
+
+        form.Text = txt;
+      });
     }
   }
 }

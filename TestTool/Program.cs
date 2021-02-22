@@ -194,6 +194,10 @@ namespace TestTool
           // --- init ---
           int maxLinesPerStripe = (int)(Math.Sqrt(nodesPath.Length) * 0.3) + 1;
 
+          int limitStripes = polyLines.GroupBy(line => line.Item1.latCode).Max(g => g.Count());
+
+          if (maxLinesPerStripe < limitStripes) maxLinesPerStripe = limitStripes;
+
           var firstLines = new List<Tuple<OsmNode, OsmNode>>();
           foreach (var line in polyLines)
           {
@@ -217,7 +221,7 @@ namespace TestTool
             {
               if (line.Item1.latCode >= startLat)
               {
-                if (nextLines.Count >= maxCount && nextLines.Last().Item1.latCode < line.Item1.latCode) break;
+                if (nextLines.Count > maxCount && nextLines.Last().Item1.latCode < line.Item1.latCode) break;
                 nextLines.Add(line);
               }
             }
@@ -226,10 +230,10 @@ namespace TestTool
             if (Equals(nextLines.Last(), polyLines.Last())) break;
           }
 
+          int sumStripes = stripes.Sum(s => s.Item3.Count);
 
-          DrawTest(nodesPath);
+          DrawTest(nodesPath, polyLines, stripes);
         }
-
 
       }
     }
