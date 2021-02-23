@@ -243,13 +243,13 @@ namespace TestTool
     {
       for (int y = 0; y < Height; y++)
       {
-        long latCode = (long) ((Height - y - Padding) / mulY) + minY;
+        long latCode = (long)((Height - y - Padding) / mulY) + minY;
         for (int x = 0; x < width; x++)
         {
-          long lonCode = (long) ((x - Padding) / mulX) + minX;
+          long lonCode = (long)((x - Padding) / mulX) + minX;
 
           int colli = 0;
-          if (latCode >= stripes.First().Item1 && latCode <= stripes.Last().Item2)
+          if (latCode >= stripes[0].Item1 && latCode <= stripes[stripes.Length - 1].Item2)
           {
             foreach (var stripe in stripes)
             {
