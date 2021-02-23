@@ -150,6 +150,9 @@ namespace TestTool
     static void MappingTest()
     {
       long[] relIds = { 3920249L };
+      //long[] relIds = { 3459013L };
+      //long[] relIds = { 62504L }; // Brandenburg
+      //long[] relIds = { 51477L }; // Deutschland
 
       using (var pbf = new OsmPbfReader(PbfPath))
       {
@@ -157,13 +160,13 @@ namespace TestTool
         {
           OsmNode[] nodesPath;
 
-          if (File.Exists("path_cache_" + relId + ".dat"))
-          {
-            byte[] buf = File.ReadAllBytes("path_cache_" + relId + ".dat");
-            int len = ReadNodesPath(buf, 0, out nodesPath);
-            if (len != buf.Length) throw new IOException();
-          }
-          else
+          //if (File.Exists("path_cache_" + relId + ".dat"))
+          //{
+          //  byte[] buf = File.ReadAllBytes("path_cache_" + relId + ".dat");
+          //  int len = ReadNodesPath(buf, 0, out nodesPath);
+          //  if (len != buf.Length) throw new IOException();
+          //}
+          //else
           {
             var rels = pbf.ReadRelations(relIds);
             var ways = pbf.ReadWays(rels.First().members.Where(x => x.type == MemberType.Way).Select(x => x.id).ToArray());

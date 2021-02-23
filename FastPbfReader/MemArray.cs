@@ -254,6 +254,31 @@ namespace OsmFastPbf
     }
     #endregion
 
+    #region # // --- BinarySearchSingle ---
+    /// <summary>
+    /// führt eine binäre Suche im sortierten Array durch und gibt einen einzelnen passenden Datensatz zurück
+    /// </summary>
+    /// <typeparam name="T">Typ im Array</typeparam>
+    /// <param name="compareMethod">Vergleichsmethode zum Finden des Datensatzes (muss mit der Sortierung kompatibel sein)</param>
+    /// <returns>gefundener Datensatz oder null, wenn nicht gefunden</returns>
+    public T BinarySearchSingle(Func<T, long> compareMethod)
+    {
+      int start = 0;
+      int end = count;
+      if (end == 0) return default(T);
+      var array = data;
+      do
+      {
+        var center = (start + end) >> 1;
+        if (compareMethod(array[center]) > 0) end = center; else start = center;
+      } while (end - start > 1);
+
+      if (compareMethod(array[start]) == 0) return array[start];
+      if (start > 0 && compareMethod(array[start - 1]) == 0) return array[start];
+      return default(T);
+    }
+    #endregion
+
     #region # // --- not supported ---
     public bool IsReadOnly { get { return false; } }
     public void Add(T item)
