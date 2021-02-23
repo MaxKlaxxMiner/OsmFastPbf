@@ -103,7 +103,7 @@ namespace TestTool
       return tx <= x;
     }
 
-    static void DrawTest(OsmNode[] nodes, List<Tuple<OsmNode, OsmNode>> polyLines, Tuple<int, int, Tuple<OsmNode, OsmNode>[]>[] stripes)
+    static void DrawTest(OsmNode[] nodes, List<Tuple<GpsPos, GpsPos>> polyLines, Tuple<uint, uint, Tuple<GpsPos, GpsPos>[]>[] stripes)
     {
       const int Height = 800;
       const int Padding = 10;
@@ -154,10 +154,11 @@ namespace TestTool
 
               long latCode = (long)((Height - y - Padding) / mulY) + minY;
               long lonCode = (long)((x - Padding) / mulX) + minX;
+              var posCode = new GpsPos(latCode / 10000000.0, lonCode / 10000000.0);
 
               int colli = 0;
 
-              if (latCode >= stripes.First().Item1 && latCode <= stripes.Last().Item2)
+              if (posCode.posY >= stripes[0].Item1 && posCode.posY <= stripes[stripes.Length - 1].Item2)
               {
                 foreach (var stripe in stripes)
                 {
@@ -165,7 +166,7 @@ namespace TestTool
                   {
                     foreach (var line in stripe.Item3)
                     {
-                      if (CheckPoint(lonCode, latCode, line.Item1.lonCode, line.Item1.latCode, line.Item2.lonCode, line.Item2.latCode)) colli++;
+                      if (CheckPoint(posCode.posX, posCode.posY, line.Item1.posX, line.Item1.posY, line.Item2.posX, line.Item2.posY)) colli++;
                     }
                     break;
                   }
@@ -216,18 +217,22 @@ namespace TestTool
       {
         long latCode = (long)((Height - y - Padding) / mulY) + minY;
         long lonCode = (long)((x - Padding) / mulX) + minX;
+        var posCode = new GpsPos((uint)(ulong)lonCode + 1800000000u, 900000000u - (uint)(ulong)latCode);
 
         int colli = 0;
 
-        foreach (var stripe in stripes)
+        if (posCode.posY >= stripes[0].Item1 && posCode.posY <= stripes[stripes.Length - 1].Item2)
         {
-          if (latCode >= stripe.Item1 && latCode <= stripe.Item2)
+          foreach (var stripe in stripes)
           {
-            foreach (var line in stripe.Item3)
+            if (posCode.posY >= stripe.Item1 && posCode.posY <= stripe.Item2)
             {
-              if (CheckPoint(lonCode, latCode, line.Item1.lonCode, line.Item1.latCode, line.Item2.lonCode, line.Item2.latCode)) colli++;
+              foreach (var line in stripe.Item3)
+              {
+                if (CheckPoint(posCode.posX, posCode.posY, line.Item1.posX, line.Item1.posY, line.Item2.posX, line.Item2.posY)) colli++;
+              }
+              break;
             }
-            break;
           }
         }
 
@@ -239,25 +244,27 @@ namespace TestTool
       });
     }
 
-    static void ScanTest(Tuple<int, int, Tuple<OsmNode, OsmNode>[]>[] stripes, int width, int minX, double mulX, int Height, int Padding, double mulY, int minY)
+    static void ScanTest(Tuple<uint, uint, Tuple<GpsPos, GpsPos>[]>[] stripes, int width, int minX, double mulX, int Height, int Padding, double mulY, int minY)
     {
       for (int y = 0; y < Height; y++)
       {
         long latCode = (long)((Height - y - Padding) / mulY) + minY;
+        var posCode = new GpsPos(0, 900000000u - (uint)(ulong)latCode);
         for (int x = 0; x < width; x++)
         {
           long lonCode = (long)((x - Padding) / mulX) + minX;
+          posCode.posX = (uint)(ulong)lonCode + 1800000000u;
 
           int colli = 0;
-          if (latCode >= stripes[0].Item1 && latCode <= stripes[stripes.Length - 1].Item2)
+          if (posCode.posY >= stripes[0].Item1 && posCode.posY <= stripes[stripes.Length - 1].Item2)
           {
             foreach (var stripe in stripes)
             {
-              if (latCode >= stripe.Item1 && latCode <= stripe.Item2)
+              if (posCode.posY >= stripe.Item1 && posCode.posY <= stripe.Item2)
               {
                 foreach (var line in stripe.Item3)
                 {
-                  if (CheckPoint(lonCode, latCode, line.Item1.lonCode, line.Item1.latCode, line.Item2.lonCode, line.Item2.latCode)) colli++;
+                  if (CheckPoint(posCode.posX, posCode.posY, line.Item1.posX, line.Item1.posY, line.Item2.posX, line.Item2.posY)) colli++;
                 }
 
                 break;

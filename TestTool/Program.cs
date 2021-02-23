@@ -180,62 +180,62 @@ namespace TestTool
             File.WriteAllBytes("path_cache_" + relId + ".dat", buf);
           }
 
-          var polyLines = new List<Tuple<OsmNode, OsmNode>>();
+          var polyLines = new List<Tuple<GpsPos, GpsPos>>();
           for (int i = 1; i < nodesPath.Length; i++)
           {
-            if (nodesPath[i - 1].latCode < nodesPath[i].latCode)
+            if (nodesPath[i - 1].latCode >= nodesPath[i].latCode)
             {
-              polyLines.Add(new Tuple<OsmNode, OsmNode>(nodesPath[i - 1], nodesPath[i]));
+              polyLines.Add(new Tuple<GpsPos, GpsPos>(new GpsPos(nodesPath[i - 1]), new GpsPos(nodesPath[i])));
             }
             else
             {
-              polyLines.Add(new Tuple<OsmNode, OsmNode>(nodesPath[i], nodesPath[i - 1]));
+              polyLines.Add(new Tuple<GpsPos, GpsPos>(new GpsPos(nodesPath[i]), new GpsPos(nodesPath[i - 1])));
             }
           }
-          polyLines.Sort((x, y) => x.Item1.latCode - y.Item1.latCode);
+          polyLines.Sort((x, y) => x.Item1.posY.CompareTo(y.Item1.posY));
 
           // --- init ---
           int maxLinesPerStripe = (int)(Math.Sqrt(nodesPath.Length) * 0.3) + 1;
           //maxLinesPerStripe = 0;
 
-          int limitStripes = polyLines.GroupBy(line => line.Item1.latCode).Max(g => g.Count());
+          int limitStripes = polyLines.GroupBy(line => line.Item1.posY).Max(g => g.Count());
 
           if (maxLinesPerStripe < limitStripes) maxLinesPerStripe = limitStripes;
 
-          var firstLines = new List<Tuple<OsmNode, OsmNode>>();
+          var firstLines = new List<Tuple<GpsPos, GpsPos>>();
           foreach (var line in polyLines)
           {
-            if (firstLines.Count >= maxLinesPerStripe && firstLines.Last().Item1.latCode < line.Item1.latCode) break;
+            if (firstLines.Count >= maxLinesPerStripe && firstLines.Last().Item1.posY < line.Item1.posY) break;
             firstLines.Add(line);
           }
 
-          var stripes = new List<Tuple<int, int, List<Tuple<OsmNode, OsmNode>>>>
+          var stripes = new List<Tuple<uint, uint, List<Tuple<GpsPos, GpsPos>>>>
           {
-            new Tuple<int, int, List<Tuple<OsmNode, OsmNode>>>(firstLines.First().Item1.latCode, firstLines.Last().Item1.latCode, firstLines)
+            new Tuple<uint, uint, List<Tuple<GpsPos, GpsPos>>>(firstLines.First().Item1.posY, firstLines.Last().Item1.posY, firstLines)
           };
 
           for (; ; )
           {
-            int startLat = stripes.Last().Item2;
-            var nextLines = polyLines.Where(line => line.Item1.latCode < startLat && line.Item2.latCode >= startLat).ToList();
+            uint startY = stripes.Last().Item2;
+            var nextLines = polyLines.Where(line => line.Item1.posY < startY && line.Item2.posY >= startY).ToList();
             int maxCount = nextLines.Count + maxLinesPerStripe;
 
             foreach (var line in polyLines)
             {
-              if (line.Item1.latCode >= startLat)
+              if (line.Item1.posY >= startY)
               {
-                if (nextLines.Count > maxCount && nextLines.Last().Item1.latCode < line.Item1.latCode) break;
+                if (nextLines.Count > maxCount && nextLines.Last().Item1.posY < line.Item1.posY) break;
                 nextLines.Add(line);
               }
             }
 
-            stripes.Add(new Tuple<int, int, List<Tuple<OsmNode, OsmNode>>>(nextLines.First().Item1.latCode, nextLines.Last().Item1.latCode, nextLines));
+            stripes.Add(new Tuple<uint, uint, List<Tuple<GpsPos, GpsPos>>>(nextLines.First().Item1.posY, nextLines.Last().Item1.posY, nextLines));
             if (Equals(nextLines.Last(), polyLines.Last())) break;
           }
 
           int sumStripes1 = stripes.Sum(s => s.Item3.Count);
 
-          var fastStripes = stripes.Select(x => new Tuple<int, int, Tuple<OsmNode, OsmNode>[]>(x.Item1, x.Item2, x.Item3.ToArray())).ToArray();
+          var fastStripes = stripes.Select(x => new Tuple<uint, uint, Tuple<GpsPos, GpsPos>[]>(x.Item1, x.Item2, x.Item3.ToArray())).ToArray();
 
           DrawTest(nodesPath, polyLines, fastStripes);
         }
