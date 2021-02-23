@@ -235,19 +235,7 @@ namespace TestTool
 
           int sumStripes1 = stripes.Sum(s => s.Item3.Count);
 
-          var cleanStripes = new List<Tuple<int, int, List<Tuple<OsmNode, OsmNode>>>>();
-
-          for (int i = 0; i < stripes.Count; i++)
-          {
-            if (i < stripes.Count - 1 && stripes[i + 1].Item1 == stripes[i].Item1) continue;
-            cleanStripes.Add(stripes[i]);
-          }
-          stripes = cleanStripes;
-
-          int sumStripes2 = stripes.Sum(s => s.Item3.Count);
-
-
-          var fastStripes = cleanStripes.Select(x => new Tuple<int, int, Tuple<OsmNode, OsmNode>[]>(x.Item1, x.Item2, x.Item3.ToArray())).ToArray();
+          var fastStripes = stripes.Select(x => new Tuple<int, int, Tuple<OsmNode, OsmNode>[]>(x.Item1, x.Item2, x.Item3.ToArray())).ToArray();
 
           DrawTest(nodesPath, polyLines, fastStripes);
         }

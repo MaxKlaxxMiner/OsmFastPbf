@@ -89,20 +89,16 @@ namespace TestTool
 
     static bool CheckPoint(long x, long y, long cx1, long cy1, long cx2, long cy2)
     {
-      if (cy1 > cy2)
-      {
-        long t = cx1; cx1 = cx2; cx2 = t;
-        t = cy1; cy1 = cy2; cy2 = t;
-      }
+      Debug.Assert(cy1 <= cy2);
 
-      y *= 2;
-      cy1 = cy1 * 2 + 1;
-      cy2 = cy2 * 2 + 1;
-
-      if (y < cy1 || y > cy2) return false;
+      if (y <= cy1 || y > cy2) return false;
       if (cx1 > x && cx2 > x) return false;
 
-      long tx = (y - cy1) * (cx2 - cx1) / (cy2 - cy1) + cx1;
+      y *= 2;
+      cy1 *= 2;
+      cy2 *= 2;
+
+      long tx = (y - cy1 - 1) * (cx2 - cx1) / (cy2 - cy1) + cx1;
 
       return tx <= x;
     }
