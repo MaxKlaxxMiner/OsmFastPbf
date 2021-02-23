@@ -107,7 +107,7 @@ namespace TestTool
       return tx <= x;
     }
 
-    static void DrawTest(OsmNode[] nodes, List<Tuple<OsmNode, OsmNode>> polyLines, List<Tuple<int, int, List<Tuple<OsmNode, OsmNode>>>> stripes)
+    static void DrawTest(OsmNode[] nodes, List<Tuple<OsmNode, OsmNode>> polyLines, Tuple<int, int, Tuple<OsmNode, OsmNode>[]>[] stripes)
     {
       const int Height = 800;
       const int Padding = 10;
@@ -243,7 +243,7 @@ namespace TestTool
       });
     }
 
-    static void ScanTest(List<Tuple<int, int, List<Tuple<OsmNode, OsmNode>>>> stripes, int width, int minX, double mulX, int Height, int Padding, double mulY, int minY)
+    static void ScanTest(Tuple<int, int, Tuple<OsmNode, OsmNode>[]>[] stripes, int width, int minX, double mulX, int Height, int Padding, double mulY, int minY)
     {
       for (int y = 0; y < Height; y++)
       {

@@ -46,6 +46,7 @@
     <Compile Include="FastPbfReader\MemArray.cs" />
     <Compile Include="FastPbfReader\PbfFast.cs" />
     <Compile Include="FastPbfReader\Structs\BlobTask.cs" />
+    <Compile Include="GpsRegion\GpsLine.cs" />
     <Compile Include="GpsRegion\GpsPos.cs" />
     <Compile Include="FastPbfReader\Structs\HeaderBBox.cs" />
     <Compile Include="FastPbfReader\Structs\HeaderBlock.cs" />
