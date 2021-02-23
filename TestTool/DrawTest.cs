@@ -103,7 +103,7 @@ namespace TestTool
       return tx <= x;
     }
 
-    static void DrawTest(OsmNode[] nodes, List<Tuple<GpsPos, GpsPos>> polyLines, Tuple<uint, uint, Tuple<GpsPos, GpsPos>[]>[] stripes)
+    static void DrawTest(OsmNode[] nodes, List<GpsLine> polyLines, GpsStripe[] stripes)
     {
       const int Height = 800;
       const int Padding = 10;
@@ -158,15 +158,15 @@ namespace TestTool
 
               int colli = 0;
 
-              if (posCode.posY >= stripes[0].Item1 && posCode.posY <= stripes[stripes.Length - 1].Item2)
+              if (posCode.posY >= stripes[0].startY && posCode.posY <= stripes[stripes.Length - 1].endY)
               {
                 foreach (var stripe in stripes)
                 {
-                  if (latCode >= stripe.Item1 && latCode <= stripe.Item2)
+                  if (latCode >= stripe.startY && latCode <= stripe.endY)
                   {
-                    foreach (var line in stripe.Item3)
+                    foreach (var line in stripe.lines)
                     {
-                      if (CheckPoint(posCode.posX, posCode.posY, line.Item1.posX, line.Item1.posY, line.Item2.posX, line.Item2.posY)) colli++;
+                      if (CheckPoint(posCode.posX, posCode.posY, line.pos1.posX, line.pos1.posY, line.pos2.posX, line.pos2.posY)) colli++;
                     }
                     break;
                   }
@@ -221,15 +221,15 @@ namespace TestTool
 
         int colli = 0;
 
-        if (posCode.posY >= stripes[0].Item1 && posCode.posY <= stripes[stripes.Length - 1].Item2)
+        if (posCode.posY >= stripes[0].startY && posCode.posY <= stripes[stripes.Length - 1].endY)
         {
           foreach (var stripe in stripes)
           {
-            if (posCode.posY >= stripe.Item1 && posCode.posY <= stripe.Item2)
+            if (posCode.posY >= stripe.startY && posCode.posY <= stripe.endY)
             {
-              foreach (var line in stripe.Item3)
+              foreach (var line in stripe.lines)
               {
-                if (CheckPoint(posCode.posX, posCode.posY, line.Item1.posX, line.Item1.posY, line.Item2.posX, line.Item2.posY)) colli++;
+                if (CheckPoint(posCode.posX, posCode.posY, line.pos1.posX, line.pos1.posY, line.pos2.posX, line.pos2.posY)) colli++;
               }
               break;
             }
@@ -244,7 +244,7 @@ namespace TestTool
       });
     }
 
-    static void ScanTest(Tuple<uint, uint, Tuple<GpsPos, GpsPos>[]>[] stripes, int width, int minX, double mulX, int Height, int Padding, double mulY, int minY)
+    static void ScanTest(GpsStripe[] stripes, int width, int minX, double mulX, int Height, int Padding, double mulY, int minY)
     {
       for (int y = 0; y < Height; y++)
       {
@@ -256,15 +256,15 @@ namespace TestTool
           posCode.posX = (uint)(ulong)lonCode + 1800000000u;
 
           int colli = 0;
-          if (posCode.posY >= stripes[0].Item1 && posCode.posY <= stripes[stripes.Length - 1].Item2)
+          if (posCode.posY >= stripes[0].startY && posCode.posY <= stripes[stripes.Length - 1].endY)
           {
             foreach (var stripe in stripes)
             {
-              if (posCode.posY >= stripe.Item1 && posCode.posY <= stripe.Item2)
+              if (posCode.posY >= stripe.startY && posCode.posY <= stripe.endY)
               {
-                foreach (var line in stripe.Item3)
+                foreach (var line in stripe.lines)
                 {
-                  if (CheckPoint(posCode.posX, posCode.posY, line.Item1.posX, line.Item1.posY, line.Item2.posX, line.Item2.posY)) colli++;
+                  if (CheckPoint(posCode.posX, posCode.posY, line.pos1.posX, line.pos1.posY, line.pos2.posX, line.pos2.posY)) colli++;
                 }
 
                 break;

@@ -180,62 +180,62 @@ namespace TestTool
             File.WriteAllBytes("path_cache_" + relId + ".dat", buf);
           }
 
-          var polyLines = new List<Tuple<GpsPos, GpsPos>>();
+          var polyLines = new List<GpsLine>();
           for (int i = 1; i < nodesPath.Length; i++)
           {
             if (nodesPath[i - 1].latCode >= nodesPath[i].latCode)
             {
-              polyLines.Add(new Tuple<GpsPos, GpsPos>(new GpsPos(nodesPath[i - 1]), new GpsPos(nodesPath[i])));
+              polyLines.Add(new GpsLine(new GpsPos(nodesPath[i - 1]), new GpsPos(nodesPath[i])));
             }
             else
             {
-              polyLines.Add(new Tuple<GpsPos, GpsPos>(new GpsPos(nodesPath[i]), new GpsPos(nodesPath[i - 1])));
+              polyLines.Add(new GpsLine(new GpsPos(nodesPath[i]), new GpsPos(nodesPath[i - 1])));
             }
           }
-          polyLines.Sort((x, y) => x.Item1.posY.CompareTo(y.Item1.posY));
+          polyLines.Sort((x, y) => x.pos1.posY.CompareTo(y.pos1.posY));
 
           // --- init ---
           int maxLinesPerStripe = (int)(Math.Sqrt(nodesPath.Length) * 0.3) + 1;
           //maxLinesPerStripe = 0;
 
-          int limitStripes = polyLines.GroupBy(line => line.Item1.posY).Max(g => g.Count());
+          int limitStripes = polyLines.GroupBy(line => line.pos1.posY).Max(g => g.Count());
 
           if (maxLinesPerStripe < limitStripes) maxLinesPerStripe = limitStripes;
 
-          var firstLines = new List<Tuple<GpsPos, GpsPos>>();
+          var firstLines = new List<GpsLine>();
           foreach (var line in polyLines)
           {
-            if (firstLines.Count >= maxLinesPerStripe && firstLines.Last().Item1.posY < line.Item1.posY) break;
+            if (firstLines.Count >= maxLinesPerStripe && firstLines.Last().pos1.posY < line.pos1.posY) break;
             firstLines.Add(line);
           }
 
-          var stripes = new List<Tuple<uint, uint, List<Tuple<GpsPos, GpsPos>>>>
+          var stripes = new List<Tuple<uint, uint, List<GpsLine>>>
           {
-            new Tuple<uint, uint, List<Tuple<GpsPos, GpsPos>>>(firstLines.First().Item1.posY, firstLines.Last().Item1.posY, firstLines)
+            new Tuple<uint, uint, List<GpsLine>>(firstLines.First().pos1.posY, firstLines.Last().pos1.posY, firstLines)
           };
 
           for (; ; )
           {
             uint startY = stripes.Last().Item2;
-            var nextLines = polyLines.Where(line => line.Item1.posY < startY && line.Item2.posY >= startY).ToList();
+            var nextLines = polyLines.Where(line => line.pos1.posY < startY && line.pos2.posY >= startY).ToList();
             int maxCount = nextLines.Count + maxLinesPerStripe;
 
             foreach (var line in polyLines)
             {
-              if (line.Item1.posY >= startY)
+              if (line.pos1.posY >= startY)
               {
-                if (nextLines.Count > maxCount && nextLines.Last().Item1.posY < line.Item1.posY) break;
+                if (nextLines.Count > maxCount && nextLines.Last().pos1.posY < line.pos1.posY) break;
                 nextLines.Add(line);
               }
             }
 
-            stripes.Add(new Tuple<uint, uint, List<Tuple<GpsPos, GpsPos>>>(nextLines.First().Item1.posY, nextLines.Last().Item1.posY, nextLines));
+            stripes.Add(new Tuple<uint, uint, List<GpsLine>>(nextLines.First().pos1.posY, nextLines.Last().pos1.posY, nextLines));
             if (Equals(nextLines.Last(), polyLines.Last())) break;
           }
 
           int sumStripes1 = stripes.Sum(s => s.Item3.Count);
 
-          var fastStripes = stripes.Select(x => new Tuple<uint, uint, Tuple<GpsPos, GpsPos>[]>(x.Item1, x.Item2, x.Item3.ToArray())).ToArray();
+          var fastStripes = stripes.Select(x => new GpsStripe(x.Item1, x.Item2, x.Item3.ToArray())).ToArray();
 
           DrawTest(nodesPath, polyLines, fastStripes);
         }
