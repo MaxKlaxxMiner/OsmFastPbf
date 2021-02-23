@@ -16,6 +16,8 @@ namespace TestTool
 {
   partial class Program
   {
+    static readonly bool ScanSpeedTest = true;
+
     static void ViewPicture(Image image, string title = "", Action<Form, int, int> mouseMove = null)
     {
       var pic = new PictureBox
@@ -131,78 +133,79 @@ namespace TestTool
 
       //ViewPicture(pic, nodes.Length.ToString("N0") + " Lines");
 
+      var measurementTotal = Stopwatch.StartNew();
       var measurementMatrix = new double[width, Height];
-      var timer = new Stopwatch();
       var maxMeasurement = 0.0;
       var minMeasurement = 10000000000.0;
-      for (int i = 0; i < 10; i++)
+
+      if (ScanSpeedTest)
       {
-        for (int y = 0; y < Height; y++)
+        for (int i = 0; i < 10; i++)
         {
-          for (int x = 0; x < width; x++)
+          ScanTest(stripes, width, minX, mulX, Height, Padding, mulY, minY);
+        }
+      }
+      else
+      {
+        var timer = new Stopwatch();
+        for (int i = 0; i < 10; i++)
+        {
+          for (int y = 0; y < Height; y++)
           {
-            timer.Restart();
-
-            long latCode = (long)((Height - y - Padding) / mulY) + minY;
-            long lonCode = (long)((x - Padding) / mulX) + minX;
-
-            int colli = 0;
-
-            foreach (var stripe in stripes)
+            for (int x = 0; x < width; x++)
             {
-              if (latCode >= stripe.Item1 && latCode <= stripe.Item2)
+              timer.Restart();
+
+              long latCode = (long)((Height - y - Padding) / mulY) + minY;
+              long lonCode = (long)((x - Padding) / mulX) + minX;
+
+              int colli = 0;
+
+              if (latCode >= stripes.First().Item1 && latCode <= stripes.Last().Item2)
               {
-                foreach (var line in stripe.Item3)
+                foreach (var stripe in stripes)
                 {
-                  if (CheckPoint(lonCode, latCode, line.Item1.lonCode, line.Item1.latCode, line.Item2.lonCode, line.Item2.latCode)) colli++;
+                  if (latCode >= stripe.Item1 && latCode <= stripe.Item2)
+                  {
+                    foreach (var line in stripe.Item3)
+                    {
+                      if (CheckPoint(lonCode, latCode, line.Item1.lonCode, line.Item1.latCode, line.Item2.lonCode, line.Item2.latCode)) colli++;
+                    }
+                    break;
+                  }
                 }
-                break;
               }
-            }
-            timer.Stop();
-            var measure = timer.ElapsedTicks * 1000.0 / Stopwatch.Frequency;
 
-            if (i == 0)
-            {
-              measurementMatrix[x, y] = measure;
-            }
-            else
-            {
-              if (measurementMatrix[x, y] > measure) measurementMatrix[x, y] = measure;
-              if (i == 9 && measurementMatrix[x, y] > maxMeasurement) maxMeasurement = measurementMatrix[x, y];
-              if (i == 9 && measurementMatrix[x, y] < minMeasurement) minMeasurement = measurementMatrix[x, y];
-            }
+              timer.Stop();
+              var measure = timer.ElapsedTicks * 1000.0 / Stopwatch.Frequency;
 
+              if (i == 0)
+              {
+                measurementMatrix[x, y] = measure;
+              }
+              else
+              {
+                if (measurementMatrix[x, y] > measure) measurementMatrix[x, y] = measure;
+                if (i == 9 && measurementMatrix[x, y] > maxMeasurement) maxMeasurement = measurementMatrix[x, y];
+                if (i == 9 && measurementMatrix[x, y] < minMeasurement) minMeasurement = measurementMatrix[x, y];
+              }
+
+            }
           }
         }
       }
+      measurementTotal.Stop();
+
       for (int y = 0; y < Height; y++)
       {
         for (int x = 0; x < width; x++)
         {
-          if (measurementMatrix[x, y] == maxMeasurement) measurementMatrix[x, y] = minMeasurement;
-        }
-      }
-      minMeasurement = 10000000;
-      maxMeasurement = 0;
-      for (int y = 0; y < Height; y++)
-      {
-        for (int x = 0; x < width; x++)
-        {
-          if (measurementMatrix[x, y] > maxMeasurement) maxMeasurement = measurementMatrix[x, y];
-          if (measurementMatrix[x, y] < minMeasurement) minMeasurement = measurementMatrix[x, y];
-        }
-      }
-      for (int y = 0; y < Height; y++)
-      {
-        for (int x = 0; x < width; x++)
-        {
-          var heat = (measurementMatrix[x, y] - minMeasurement) / (maxMeasurement - minMeasurement);
+          double heat = (measurementMatrix[x, y] - minMeasurement) / (maxMeasurement - minMeasurement);
           var currentColor = pic.GetPixel(x, y);
           //var nextColor = Color.FromArgb((int)(255 * heat), (int)(255 - 255 * heat), 0);
           var nextColor = Color.FromArgb(0, (int)(255 * heat), 0);
           if (heat > 0.9) nextColor = Color.Red;
-          var opacity = 1;
+          double opacity = ScanSpeedTest ? 0.0 : 1.0;
           byte r = (byte)((nextColor.R * opacity) + currentColor.R * (1 - opacity));
           byte gr = (byte)((nextColor.G * opacity) + currentColor.G * (1 - opacity));
           byte b = (byte)((nextColor.B * opacity) + currentColor.B * (1 - opacity));
@@ -211,6 +214,8 @@ namespace TestTool
         }
       }
 
+      g.DrawString("time: " + measurementTotal.ElapsedMilliseconds.ToString("N0") + " ms", new Font("Arial", 24), new SolidBrush(Color.White), 10, 10);
+
       ViewPicture(pic, nodes.Length.ToString("N0") + " Lines", (form, x, y) =>
       {
         long latCode = (long)((Height - y - Padding) / mulY) + minY;
@@ -218,40 +223,53 @@ namespace TestTool
 
         int colli = 0;
 
-        var time = Stopwatch.StartNew();
-
-        for (int r = 0; r < 100; r++)
+        foreach (var stripe in stripes)
         {
-          colli = 0;
-          foreach (var stripe in stripes)
+          if (latCode >= stripe.Item1 && latCode <= stripe.Item2)
           {
-            if (latCode >= stripe.Item1 && latCode <= stripe.Item2)
+            foreach (var line in stripe.Item3)
             {
-              foreach (var line in stripe.Item3)
-              {
-                if (CheckPoint(lonCode, latCode, line.Item1.lonCode, line.Item1.latCode, line.Item2.lonCode, line.Item2.latCode)) colli++;
-              }
-              break;
+              if (CheckPoint(lonCode, latCode, line.Item1.lonCode, line.Item1.latCode, line.Item2.lonCode, line.Item2.latCode)) colli++;
             }
+            break;
           }
-
-          //foreach (var line in polyLines)
-          //{
-          //  if (CheckPoint(lonCode, latCode, line.Item1.lonCode, line.Item1.latCode, line.Item2.lonCode, line.Item2.latCode)) colli++;
-          //}
         }
 
-
-
-        time.Stop();
-        double ms = time.ElapsedTicks * 1000.0 / Stopwatch.Frequency;
-
-        string txt = "lat: " + (latCode / 10000000.0).ToString("N5") + ", lon: " + (lonCode / 10000000.0).ToString("N5") + ", " + ms.ToString("N2") + " ms, colli: " + colli + (colli % 2 == 1 ? " #####" : "");
+        string txt = "lat: " + (latCode / 10000000.0).ToString("N5") + ", lon: " + (lonCode / 10000000.0).ToString("N5") + ", colli: " + colli + (colli % 2 == 1 ? " #####" : "");
 
         //File.AppendAllText(@"C:\Users\Max\Desktop\prog\vacaVista\dummytest\log.txt", txt + "\r\n");
 
         form.Text = txt;
       });
+    }
+
+    static void ScanTest(List<Tuple<int, int, List<Tuple<OsmNode, OsmNode>>>> stripes, int width, int minX, double mulX, int Height, int Padding, double mulY, int minY)
+    {
+      for (int y = 0; y < Height; y++)
+      {
+        long latCode = (long) ((Height - y - Padding) / mulY) + minY;
+        for (int x = 0; x < width; x++)
+        {
+          long lonCode = (long) ((x - Padding) / mulX) + minX;
+
+          int colli = 0;
+          if (latCode >= stripes.First().Item1 && latCode <= stripes.Last().Item2)
+          {
+            foreach (var stripe in stripes)
+            {
+              if (latCode >= stripe.Item1 && latCode <= stripe.Item2)
+              {
+                foreach (var line in stripe.Item3)
+                {
+                  if (CheckPoint(lonCode, latCode, line.Item1.lonCode, line.Item1.latCode, line.Item2.lonCode, line.Item2.latCode)) colli++;
+                }
+
+                break;
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

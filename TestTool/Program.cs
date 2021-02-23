@@ -160,13 +160,13 @@ namespace TestTool
         {
           OsmNode[] nodesPath;
 
-          //if (File.Exists("path_cache_" + relId + ".dat"))
-          //{
-          //  byte[] buf = File.ReadAllBytes("path_cache_" + relId + ".dat");
-          //  int len = ReadNodesPath(buf, 0, out nodesPath);
-          //  if (len != buf.Length) throw new IOException();
-          //}
-          //else
+          if (File.Exists("path_cache_" + relId + ".dat"))
+          {
+            byte[] buf = File.ReadAllBytes("path_cache_" + relId + ".dat");
+            int len = ReadNodesPath(buf, 0, out nodesPath);
+            if (len != buf.Length) throw new IOException();
+          }
+          else
           {
             var rels = pbf.ReadRelations(relIds);
             var ways = pbf.ReadWays(rels.First().members.Where(x => x.type == MemberType.Way).Select(x => x.id).ToArray());
@@ -196,7 +196,7 @@ namespace TestTool
 
           // --- init ---
           int maxLinesPerStripe = (int)(Math.Sqrt(nodesPath.Length) * 0.3) + 1;
-          //int maxLinesPerStripe = 0;
+          //maxLinesPerStripe = 0;
 
           int limitStripes = polyLines.GroupBy(line => line.Item1.latCode).Max(g => g.Count());
 
@@ -213,7 +213,6 @@ namespace TestTool
           {
             new Tuple<int, int, List<Tuple<OsmNode, OsmNode>>>(firstLines.First().Item1.latCode, firstLines.Last().Item1.latCode, firstLines)
           };
-
 
           for (; ; )
           {
@@ -234,7 +233,18 @@ namespace TestTool
             if (Equals(nextLines.Last(), polyLines.Last())) break;
           }
 
-          int sumStripes = stripes.Sum(s => s.Item3.Count);
+          int sumStripes1 = stripes.Sum(s => s.Item3.Count);
+
+          var cleanStripes = new List<Tuple<int, int, List<Tuple<OsmNode, OsmNode>>>>();
+
+          for (int i = 0; i < stripes.Count; i++)
+          {
+            if (i < stripes.Count - 1 && stripes[i + 1].Item1 == stripes[i].Item1) continue;
+            cleanStripes.Add(stripes[i]);
+          }
+          stripes = cleanStripes;
+
+          int sumStripes2 = stripes.Sum(s => s.Item3.Count);
 
           DrawTest(nodesPath, polyLines, stripes);
         }
