@@ -193,6 +193,7 @@ namespace TestTool
 
           // --- init ---
           int maxLinesPerStripe = (int)(Math.Sqrt(nodesPath.Length) * 0.3) + 1;
+          //int maxLinesPerStripe = 0;
 
           int limitStripes = polyLines.GroupBy(line => line.Item1.latCode).Max(g => g.Count());
 

@@ -107,7 +107,7 @@ namespace TestTool
 
     static void DrawTest(OsmNode[] nodes, List<Tuple<OsmNode, OsmNode>> polyLines, List<Tuple<int, int, List<Tuple<OsmNode, OsmNode>>>> stripes)
     {
-      const int Height = 1400;
+      const int Height = 800;
       const int Padding = 10;
 
       var points = nodes.Select(node => new PointXY(node)).ToArray();
@@ -130,6 +130,86 @@ namespace TestTool
       g.DrawPolygon(new Pen(Color.FromArgb(0x0080ff - 16777216)), points.Select(p => new Point((int)((p.x - minX) * mulX) + Padding, Height - (int)((p.y - minY) * mulY) - Padding)).ToArray());
 
       //ViewPicture(pic, nodes.Length.ToString("N0") + " Lines");
+
+      var measurementMatrix = new double[width, Height];
+      var timer = new Stopwatch();
+      var maxMeasurement = 0.0;
+      var minMeasurement = 10000000000.0;
+      for (int i = 0; i < 10; i++)
+      {
+        for (int y = 0; y < Height; y++)
+        {
+          for (int x = 0; x < width; x++)
+          {
+            timer.Restart();
+
+            long latCode = (long)((Height - y - Padding) / mulY) + minY;
+            long lonCode = (long)((x - Padding) / mulX) + minX;
+
+            int colli = 0;
+
+            foreach (var stripe in stripes)
+            {
+              if (latCode >= stripe.Item1 && latCode <= stripe.Item2)
+              {
+                foreach (var line in stripe.Item3)
+                {
+                  if (CheckPoint(lonCode, latCode, line.Item1.lonCode, line.Item1.latCode, line.Item2.lonCode, line.Item2.latCode)) colli++;
+                }
+                break;
+              }
+            }
+            timer.Stop();
+            var measure = timer.ElapsedTicks * 1000.0 / Stopwatch.Frequency;
+
+            if (i == 0)
+            {
+              measurementMatrix[x, y] = measure;
+            }
+            else
+            {
+              if (measurementMatrix[x, y] > measure) measurementMatrix[x, y] = measure;
+              if (i == 9 && measurementMatrix[x, y] > maxMeasurement) maxMeasurement = measurementMatrix[x, y];
+              if (i == 9 && measurementMatrix[x, y] < minMeasurement) minMeasurement = measurementMatrix[x, y];
+            }
+
+          }
+        }
+      }
+      for (int y = 0; y < Height; y++)
+      {
+        for (int x = 0; x < width; x++)
+        {
+          if (measurementMatrix[x, y] == maxMeasurement) measurementMatrix[x, y] = minMeasurement;
+        }
+      }
+      minMeasurement = 10000000;
+      maxMeasurement = 0;
+      for (int y = 0; y < Height; y++)
+      {
+        for (int x = 0; x < width; x++)
+        {
+          if (measurementMatrix[x, y] > maxMeasurement) maxMeasurement = measurementMatrix[x, y];
+          if (measurementMatrix[x, y] < minMeasurement) minMeasurement = measurementMatrix[x, y];
+        }
+      }
+      for (int y = 0; y < Height; y++)
+      {
+        for (int x = 0; x < width; x++)
+        {
+          var heat = (measurementMatrix[x, y] - minMeasurement) / (maxMeasurement - minMeasurement);
+          var currentColor = pic.GetPixel(x, y);
+          //var nextColor = Color.FromArgb((int)(255 * heat), (int)(255 - 255 * heat), 0);
+          var nextColor = Color.FromArgb(0, (int)(255 * heat), 0);
+          if (heat > 0.9) nextColor = Color.Red;
+          var opacity = 1;
+          byte r = (byte)((nextColor.R * opacity) + currentColor.R * (1 - opacity));
+          byte gr = (byte)((nextColor.G * opacity) + currentColor.G * (1 - opacity));
+          byte b = (byte)((nextColor.B * opacity) + currentColor.B * (1 - opacity));
+
+          pic.SetPixel(x, y, Color.FromArgb(r, gr, b));
+        }
+      }
 
       ViewPicture(pic, nodes.Length.ToString("N0") + " Lines", (form, x, y) =>
       {
@@ -161,12 +241,14 @@ namespace TestTool
           //}
         }
 
+
+
         time.Stop();
         double ms = time.ElapsedTicks * 1000.0 / Stopwatch.Frequency;
 
         string txt = "lat: " + (latCode / 10000000.0).ToString("N5") + ", lon: " + (lonCode / 10000000.0).ToString("N5") + ", " + ms.ToString("N2") + " ms, colli: " + colli + (colli % 2 == 1 ? " #####" : "");
 
-        File.AppendAllText(@"C:\Users\Max\Desktop\prog\vacaVista\dummytest\log.txt", txt + "\r\n");
+        //File.AppendAllText(@"C:\Users\Max\Desktop\prog\vacaVista\dummytest\log.txt", txt + "\r\n");
 
         form.Text = txt;
       });
