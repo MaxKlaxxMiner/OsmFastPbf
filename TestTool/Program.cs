@@ -196,7 +196,7 @@ namespace TestTool
 
           // --- init ---
           int maxLinesPerStripe = (int)(Math.Sqrt(nodesPath.Length) * 0.3) + 1;
-          //maxLinesPerStripe = 0;
+          maxLinesPerStripe = 0;
 
           int limitStripes = polyLines.GroupBy(line => line.pos1.posY).Max(g => g.Count());
 

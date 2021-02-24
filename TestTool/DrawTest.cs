@@ -11,6 +11,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using OsmFastPbf;
+using OsmFastPbf.Helper;
 
 namespace TestTool
 {
@@ -158,27 +159,23 @@ namespace TestTool
     {
       if (gpsPos.posY < stripes[0].startY || gpsPos.posY > stripes[stripes.Length - 1].startY) return 0;
 
-      //      GpsStripe foundStripe1 = null;
-      //      GpsStripe foundStripe2 = null;
+      int start = 0;
+      int end = stripes.Length;
+      do
+      {
+        var center = (start + end) >> 1;
+        if (gpsPos.posY < stripes[center].startY) end = center; else start = center;
+      } while (end - start > 1);
 
       int collisions = 0;
-      for (var i = stripes.Length - 1; i >= 0; i--)
-      {
-        if (stripes[i].startY > gpsPos.posY) continue;
 
-        //          foundStripe1 = stripes[i];
-        foreach (var line in stripes[i].lines)
+      if (gpsPos.posY >= stripes[start].startY && gpsPos.posY <= stripes[start].endY)
+      {
+        foreach (var line in stripes[start].lines)
         {
           if (CheckPoint(gpsPos.posX, gpsPos.posY, line.pos1.posX, line.pos1.posY, line.pos2.posX, line.pos2.posY)) collisions++;
         }
-
-        break;
       }
-
-      //if (foundStripe1 != foundStripe2)
-      //{
-      //  throw new Exception("blub");
-      //}
 
       return collisions;
     }
