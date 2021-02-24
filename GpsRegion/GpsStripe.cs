@@ -12,5 +12,9 @@ namespace OsmFastPbf
       this.endY = endY;
       this.lines = lines;
     }
+    public override string ToString()
+    {
+      return new { startY, endY, lines = "[" + lines.Length + "]" }.ToString();
+    }
   }
 }

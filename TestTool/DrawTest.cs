@@ -16,8 +16,6 @@ namespace TestTool
 {
   partial class Program
   {
-    static readonly bool ScanSpeedTest = true;
-
     static void ViewPicture(Image image, string title = "", Action<Form, int, int> mouseMove = null)
     {
       var pic = new PictureBox
@@ -129,89 +127,16 @@ namespace TestTool
 
       //ViewPicture(pic, nodes.Length.ToString("N0") + " Lines");
 
-      var measurementTotal = Stopwatch.StartNew();
-      var measurementMatrix = new double[width, Height];
-      var maxMeasurement = 0.0;
-      var minMeasurement = 10000000000.0;
-
-      if (ScanSpeedTest)
+      long bestTicks = long.MaxValue;
+      for (int i = 0; i < 10; i++)
       {
-        for (int i = 0; i < 10; i++)
-        {
-          ScanTest(stripes, width, minX, mulX, Height, Padding, mulY, minY);
-        }
-      }
-      else
-      {
-        var timer = new Stopwatch();
-        for (int i = 0; i < 10; i++)
-        {
-          for (int y = 0; y < Height; y++)
-          {
-            for (int x = 0; x < width; x++)
-            {
-              timer.Restart();
-
-              long latCode = (long)((Height - y - Padding) / mulY) + minY;
-              long lonCode = (long)((x - Padding) / mulX) + minX;
-              var posCode = new GpsPos(latCode / 10000000.0, lonCode / 10000000.0);
-
-              int colli = 0;
-
-              if (posCode.posY >= stripes[0].startY && posCode.posY <= stripes[stripes.Length - 1].endY)
-              {
-                foreach (var stripe in stripes)
-                {
-                  if (latCode >= stripe.startY && latCode <= stripe.endY)
-                  {
-                    foreach (var line in stripe.lines)
-                    {
-                      if (CheckPoint(posCode.posX, posCode.posY, line.pos1.posX, line.pos1.posY, line.pos2.posX, line.pos2.posY)) colli++;
-                    }
-                    break;
-                  }
-                }
-              }
-
-              timer.Stop();
-              var measure = timer.ElapsedTicks * 1000.0 / Stopwatch.Frequency;
-
-              if (i == 0)
-              {
-                measurementMatrix[x, y] = measure;
-              }
-              else
-              {
-                if (measurementMatrix[x, y] > measure) measurementMatrix[x, y] = measure;
-                if (i == 9 && measurementMatrix[x, y] > maxMeasurement) maxMeasurement = measurementMatrix[x, y];
-                if (i == 9 && measurementMatrix[x, y] < minMeasurement) minMeasurement = measurementMatrix[x, y];
-              }
-
-            }
-          }
-        }
-      }
-      measurementTotal.Stop();
-
-      for (int y = 0; y < Height; y++)
-      {
-        for (int x = 0; x < width; x++)
-        {
-          double heat = (measurementMatrix[x, y] - minMeasurement) / (maxMeasurement - minMeasurement);
-          var currentColor = pic.GetPixel(x, y);
-          //var nextColor = Color.FromArgb((int)(255 * heat), (int)(255 - 255 * heat), 0);
-          var nextColor = Color.FromArgb(0, (int)(255 * heat), 0);
-          if (heat > 0.9) nextColor = Color.Red;
-          double opacity = ScanSpeedTest ? 0.0 : 1.0;
-          byte r = (byte)((nextColor.R * opacity) + currentColor.R * (1 - opacity));
-          byte gr = (byte)((nextColor.G * opacity) + currentColor.G * (1 - opacity));
-          byte b = (byte)((nextColor.B * opacity) + currentColor.B * (1 - opacity));
-
-          pic.SetPixel(x, y, Color.FromArgb(r, gr, b));
-        }
+        var time = Stopwatch.StartNew();
+        ScanTest(stripes, width, minX, mulX, Height, Padding, mulY, minY);
+        time.Stop();
+        if (time.ElapsedTicks < bestTicks) bestTicks = time.ElapsedTicks;
       }
 
-      g.DrawString("time: " + measurementTotal.ElapsedMilliseconds.ToString("N0") + " ms", new Font("Arial", 24), new SolidBrush(Color.White), 10, 10);
+      g.DrawString("time: " + (bestTicks * 1000.0 / Stopwatch.Frequency).ToString("N2") + " ms", new Font("Arial", 24), new SolidBrush(Color.White), 10, 10);
 
       ViewPicture(pic, nodes.Length.ToString("N0") + " Lines", (form, x, y) =>
       {
@@ -219,24 +144,9 @@ namespace TestTool
         long lonCode = (long)((x - Padding) / mulX) + minX;
         var posCode = new GpsPos((uint)(ulong)lonCode + 1800000000u, 900000000u - (uint)(ulong)latCode);
 
-        int colli = 0;
+        int collisions = ScanCollisions(stripes, posCode);
 
-        if (posCode.posY >= stripes[0].startY && posCode.posY <= stripes[stripes.Length - 1].endY)
-        {
-          foreach (var stripe in stripes)
-          {
-            if (posCode.posY >= stripe.startY && posCode.posY <= stripe.endY)
-            {
-              foreach (var line in stripe.lines)
-              {
-                if (CheckPoint(posCode.posX, posCode.posY, line.pos1.posX, line.pos1.posY, line.pos2.posX, line.pos2.posY)) colli++;
-              }
-              break;
-            }
-          }
-        }
-
-        string txt = "lat: " + (latCode / 10000000.0).ToString("N5") + ", lon: " + (lonCode / 10000000.0).ToString("N5") + ", colli: " + colli + (colli % 2 == 1 ? " #####" : "");
+        string txt = "lat: " + (latCode / 10000000.0).ToString("N5") + ", lon: " + (lonCode / 10000000.0).ToString("N5") + ", colli: " + collisions + (collisions % 2 == 1 ? " #####" : "");
 
         //File.AppendAllText(@"C:\Users\Max\Desktop\prog\vacaVista\dummytest\log.txt", txt + "\r\n");
 
@@ -244,8 +154,38 @@ namespace TestTool
       });
     }
 
-    static void ScanTest(GpsStripe[] stripes, int width, int minX, double mulX, int Height, int Padding, double mulY, int minY)
+    static int ScanCollisions(GpsStripe[] stripes, GpsPos gpsPos)
     {
+      if (gpsPos.posY < stripes[0].startY || gpsPos.posY > stripes[stripes.Length - 1].startY) return 0;
+
+      //      GpsStripe foundStripe1 = null;
+      //      GpsStripe foundStripe2 = null;
+
+      int collisions = 0;
+      for (var i = stripes.Length - 1; i >= 0; i--)
+      {
+        if (stripes[i].startY > gpsPos.posY) continue;
+
+        //          foundStripe1 = stripes[i];
+        foreach (var line in stripes[i].lines)
+        {
+          if (CheckPoint(gpsPos.posX, gpsPos.posY, line.pos1.posX, line.pos1.posY, line.pos2.posX, line.pos2.posY)) collisions++;
+        }
+
+        break;
+      }
+
+      //if (foundStripe1 != foundStripe2)
+      //{
+      //  throw new Exception("blub");
+      //}
+
+      return collisions;
+    }
+
+    static int ScanTest(GpsStripe[] stripes, int width, int minX, double mulX, int Height, int Padding, double mulY, int minY)
+    {
+      int filled = 0;
       for (int y = 0; y < Height; y++)
       {
         long latCode = (long)((Height - y - Padding) / mulY) + minY;
@@ -255,24 +195,11 @@ namespace TestTool
           long lonCode = (long)((x - Padding) / mulX) + minX;
           posCode.posX = (uint)(ulong)lonCode + 1800000000u;
 
-          int colli = 0;
-          if (posCode.posY >= stripes[0].startY && posCode.posY <= stripes[stripes.Length - 1].endY)
-          {
-            foreach (var stripe in stripes)
-            {
-              if (posCode.posY >= stripe.startY && posCode.posY <= stripe.endY)
-              {
-                foreach (var line in stripe.lines)
-                {
-                  if (CheckPoint(posCode.posX, posCode.posY, line.pos1.posX, line.pos1.posY, line.pos2.posX, line.pos2.posY)) colli++;
-                }
-
-                break;
-              }
-            }
-          }
+          int collisions = ScanCollisions(stripes, posCode);
+          if ((collisions & 1) == 1) filled++;
         }
       }
+      return filled;
     }
   }
 }

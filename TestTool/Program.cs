@@ -235,7 +235,8 @@ namespace TestTool
 
           int sumStripes1 = stripes.Sum(s => s.Item3.Count);
 
-          var fastStripes = stripes.Select(x => new GpsStripe(x.Item1, x.Item2, x.Item3.ToArray())).ToArray();
+          stripes.Add(new Tuple<uint, uint, List<GpsLine>>(stripes.Last().Item2 + 1, stripes.Last().Item2, new List<GpsLine>()));
+          var fastStripes = stripes.Select((x, i) => new GpsStripe(i == 0 ? x.Item1 : stripes[i - 1].Item2, x.Item2, x.Item3.ToArray())).ToArray();
 
           DrawTest(nodesPath, polyLines, fastStripes);
         }
