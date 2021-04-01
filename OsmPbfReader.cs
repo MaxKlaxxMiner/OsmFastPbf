@@ -482,6 +482,32 @@ namespace OsmFastPbf
 
       return result;
     }
+
+    public IEnumerable<OsmRelation> ReadAllRelations()
+    {
+      var blobDecoder = BlobSmtDecoder(relationIndex, (blob, buf) =>
+      {
+        try
+        {
+          OsmRelation[] tmp;
+          int len = PbfFast.DecodePrimitiveBlock(buf, 0, blob, out tmp);
+          if (len != blob.rawSize) throw new PbfParseException();
+          return tmp;
+        }
+        catch
+        {
+          return null;
+        }
+      });
+
+      foreach(var blob in blobDecoder)
+      {
+        foreach (var rel in blob)
+        {
+          yield return rel;
+        }
+      }
+    }
     #endregion
   }
 }

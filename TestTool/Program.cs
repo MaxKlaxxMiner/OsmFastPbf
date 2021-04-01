@@ -244,13 +244,35 @@ namespace TestTool
       }
     }
 
+    static void SearchRelations()
+    {
+      var found = new List<OsmRelation>();
+      using (var pbf = new OsmPbfReader(PbfPath))
+      {
+        long pos = 0;
+        long relTotalCount = pbf.relationIndex.Sum(x => x.relationCount);
+        foreach (var rel in pbf.ReadAllRelations())
+        {
+          if ((pos & 0xfff) == 0) Console.WriteLine("{0:N0} / {1:N0}", pos, relTotalCount);
+          pos++;
+          if (rel.values.Any(x => x.Key == "place" && x.Value == "sea"))
+          {
+            string deName = rel.values.FirstOrDefault(x => x.Key == "name:de").Value ?? "xx";
+            Console.WriteLine("found: " + deName);
+            found.Add(rel);
+          }
+        }
+      }
+    }
+
     static void Main(string[] args)
     {
       //BufferTest(); return;
       //HgtTest(); return;
       //ParseTest(); return;
       //DrawTest(); return;
-      MappingTest();
+      //MappingTest();
+      SearchRelations();
       //ConverterTest_1_ExtractNodes();
       //ConverterTest_2_SortNodes();
       //ConverterTest_3_MergeNodes();
