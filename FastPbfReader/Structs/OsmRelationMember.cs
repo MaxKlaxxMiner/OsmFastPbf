@@ -4,6 +4,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using OsmFastPbf.Helper;
+// ReSharper disable UselessBinaryOperation
+
 // ReSharper disable UnassignedReadonlyField
 // ReSharper disable UnusedMember.Global
 // ReSharper disable UnusedType.Global
@@ -31,6 +34,28 @@ namespace OsmFastPbf
         case MemberType.Relation: return new { type, relationId = id, role }.ToString();
         default: return new { type, memberId = id, role }.ToString();
       }
+    }
+
+    public int WriteBinary(byte[] buf, int ofs)
+    {
+      int p = 0;
+      p += ProtoBuf.WriteVarInt(buf, ofs + p, (ulong)id);
+      buf[ofs + p] = (byte)type; p++;
+      p += ProtoBuf.WriteString(buf, ofs + p, role);
+      return p;
+    }
+
+    public static int ReadBinary(byte[] buf, int ofs, out OsmRelationMember member)
+    {
+      int p = 0;
+      ulong tmp;
+      p += ProtoBuf.ReadVarInt(buf, ofs + p, out tmp);
+      long id = (long)tmp;
+      var type = (MemberType)buf[ofs + p]; p++;
+      string str;
+      p += ProtoBuf.ReadString(buf, ofs + p, out str);
+      member = new OsmRelationMember(id, type, str);
+      return p;
     }
   }
 }

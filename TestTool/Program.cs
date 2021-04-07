@@ -22,6 +22,10 @@ namespace TestTool
       get
       {
         string path = "planet-latest.osm.pbf";
+
+        if (File.Exists(@"C:\OSM\" + path)) return @"C:\OSM\" + path;
+        if (File.Exists(@"D:\OSM\" + path)) return @"D:\OSM\" + path;
+
         for (int i = 0; i < 32 && !File.Exists(path); i++) path = "../" + path;
         if (!File.Exists(path)) throw new FileNotFoundException(path.TrimStart('.', '/'));
         return path;
@@ -149,9 +153,9 @@ namespace TestTool
 
     static void MappingTest()
     {
-      long[] relIds = { 3920249L };
+      //long[] relIds = { 3920249L };
       //long[] relIds = { 3459013L };
-      //long[] relIds = { 62504L }; // Brandenburg
+      long[] relIds = { 62504L }; // Brandenburg
       //long[] relIds = { 51477L }; // Deutschland
 
       using (var pbf = new OsmPbfReader(PbfPath))
@@ -265,14 +269,70 @@ namespace TestTool
       }
     }
 
+    static void CacheTest()
+    {
+      long[] relIds =
+      {
+        418716L,  // Herrnhut
+        408308L,  // Berlin Weißensee
+        62422L,   // Berlin
+        62504L,   // Brandenburg
+        51477L,   // Deutschland
+        3920249L, // Portuagl - Aveiro
+        3459013L  // Portugal - Porto
+      };
+
+      using (var pbf = new OsmPbfReader(PbfPath))
+      using (var cache = new OsmCache(pbf))
+      {
+        foreach (long relId in relIds)
+        {
+          OsmRelation relation;
+          OsmWay[] ways;
+          OsmNode[] nodes;
+          if (!cache.ReadRelation(relId, out relation, out ways, out nodes))
+          {
+            throw new Exception("relation not found: " + relId);
+          }
+
+          // --- validation ---
+          //OsmRelation relation2;
+          //OsmWay[] ways2;
+          //OsmNode[] nodes2;
+          //if (!cache.ReadRelationDirect(relId, out relation2, out ways2, out nodes2))
+          //{
+          //  throw new Exception("relation not found: " + relId);
+          //}
+
+          //if (relation.ToString() != relation2.ToString()) throw new Exception("meow");
+          //if (string.Join(",", relation.members.Select(m => m.ToString())) != string.Join(",", relation2.members.Select(m => m.ToString()))) throw new Exception("meow");
+          //if (string.Join(",", relation.values.Select(v => v.Key + "-" + v.Value)) != string.Join(",", relation2.values.Select(v => v.Key + "-" + v.Value))) throw new Exception("meow");
+          //if (ways.Length != ways2.Length) throw new Exception("meow");
+          //for (int i = 0; i < ways.Length; i++)
+          //{
+          //  if (ways[i].ToString() != ways2[i].ToString()) throw new Exception("meow");
+          //  if (string.Join(",", ways[i].values.Select(v => v.Key + "-" + v.Value)) != string.Join(",", ways2[i].values.Select(v => v.Key + "-" + v.Value))) throw new Exception("meow");
+          //  if (string.Join(",", ways[i].nodeIds) != string.Join(",", ways2[i].nodeIds)) throw new Exception("meow");
+          //}
+          //if (nodes.Length != nodes2.Length) throw new Exception("meow");
+          //for (int i = 0; i < nodes.Length; i++)
+          //{
+          //  if (nodes[i].ToString() != nodes2[i].ToString()) throw new Exception("meow");
+          //  if (string.Join(",", nodes[i].values.Select(v => v.Key + "-" + v.Value)) != string.Join(",", nodes2[i].values.Select(v => v.Key + "-" + v.Value))) throw new Exception("meow");
+          //}
+        }
+      }
+    }
+
     static void Main(string[] args)
     {
+      CacheTest();
       //BufferTest(); return;
       //HgtTest(); return;
       //ParseTest(); return;
       //DrawTest(); return;
       //MappingTest();
-      SearchRelations();
+      //SearchRelations();
       //ConverterTest_1_ExtractNodes();
       //ConverterTest_2_SortNodes();
       //ConverterTest_3_MergeNodes();
