@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using OsmFastPbf;
 using OsmFastPbf.Helper;
+// ReSharper disable UnusedMethodReturnValue.Global
 
 // ReSharper disable UnusedMember.Global
 // ReSharper disable MemberCanBePrivate.Global
@@ -21,9 +22,6 @@ namespace TestTool
     const string CacheDataFile = "osm-cache_data.dat";
 
     readonly OsmPbfReader pbfReader;
-    readonly Dictionary<long, long> relationsIndex;
-    readonly Dictionary<long, long> waysIndex;
-    readonly Dictionary<long, long> nodesIndex;
     readonly FileStream cacheData;
 
     readonly byte[] cacheBuffer = new byte[16777216];
@@ -33,10 +31,23 @@ namespace TestTool
       if (!File.Exists(CacheIndexFile)) File.WriteAllBytes(CacheIndexFile, new byte[0]);
       if (!File.Exists(CacheDataFile)) File.WriteAllBytes(CacheDataFile, new byte[1]);
 
-      // --- Read Index ---
+      // --- Load Index ---
       relationsIndex = new Dictionary<long, long>();
       waysIndex = new Dictionary<long, long>();
       nodesIndex = new Dictionary<long, long>();
+      LoadIndex();
+
+      cacheData = new FileStream(CacheDataFile, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite);
+      pbfReader = pbf;
+    }
+
+    #region # // --- Index ---
+    readonly Dictionary<long, long> relationsIndex;
+    readonly Dictionary<long, long> waysIndex;
+    readonly Dictionary<long, long> nodesIndex;
+
+    void LoadIndex()
+    {
       var buf = File.ReadAllBytes(CacheIndexFile);
       for (int p = 0; p < buf.Length; )
       {
@@ -52,16 +63,24 @@ namespace TestTool
           default: throw new Exception("unknown type?");
         }
       }
-
-      cacheData = new FileStream(CacheDataFile, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite);
-      pbfReader = pbf;
     }
 
     long GetRelationIndex(long relationID)
     {
       long index;
-      if (relationsIndex.TryGetValue(relationID, out index)) return index;
-      return 0; // not found & not cached
+      return relationsIndex.TryGetValue(relationID, out index) ? index : 0;
+    }
+
+    long GetWayIndex(long wayID)
+    {
+      long index;
+      return waysIndex.TryGetValue(wayID, out index) ? index : 0;
+    }
+
+    long GetNodeIndex(long nodeID)
+    {
+      long index;
+      return nodesIndex.TryGetValue(nodeID, out index) ? index : 0;
     }
 
     void WriteIndex(MemberType type, long id, long index)
@@ -85,39 +104,9 @@ namespace TestTool
         indexFile.Write(miniBuf, 0, p);
       }
     }
+    #endregion
 
-    OsmRelation GetRelationData(long relationIndex, out OsmWay[] osmWays, out OsmNode[] osmNodes)
-    {
-      var buf = cacheBuffer;
-      cacheData.Position = relationIndex;
-      cacheData.Read(buf, 0, sizeof(int));
-
-      int size = BitConverter.ToInt32(buf, 0) - sizeof(int);
-      if (cacheData.Read(buf, sizeof(int), size) != size) throw new IOException("EOF?");
-
-      int p = sizeof(int);
-      OsmRelation osmRelation;
-      p += OsmRelation.ReadBinary(buf, p, out osmRelation);
-      ulong tmp;
-      p += ProtoBuf.ReadVarInt(buf, p, out tmp);
-      osmWays = new OsmWay[tmp];
-      for (int i = 0; i < osmWays.Length; i++)
-      {
-        p += OsmWay.ReadBinary(buf, p, out osmWays[i]);
-      }
-      DecodeDelta(osmWays);
-      p += ProtoBuf.ReadVarInt(buf, p, out tmp);
-      osmNodes = new OsmNode[tmp];
-      for (int i = 0; i < osmNodes.Length; i++)
-      {
-        p += OsmNode.ReadBinary(buf, p, out osmNodes[i]);
-      }
-      DecodeDelta(osmNodes);
-      if (p != size + sizeof(int)) throw new PbfParseException();
-
-      return osmRelation;
-    }
-
+    #region # // --- Helper ---
     static void EncodeDelta(OsmNode[] nodes)
     {
       for (int i = nodes.Length - 1; i > 0; i--)
@@ -159,6 +148,40 @@ namespace TestTool
         ways[i] = new OsmWay(ways[i].id + ways[i - 1].id, ways[i].values, ids);
       }
     }
+    #endregion
+
+    #region # // --- Relations ---
+    OsmRelation ReadRelationCache(long relationIndex, out OsmWay[] osmWays, out OsmNode[] osmNodes)
+    {
+      var buf = cacheBuffer;
+      cacheData.Position = relationIndex;
+      cacheData.Read(buf, 0, sizeof(int));
+
+      int size = BitConverter.ToInt32(buf, 0) - sizeof(int);
+      if (cacheData.Read(buf, sizeof(int), size) != size) throw new IOException("EOF?");
+
+      int p = sizeof(int);
+      OsmRelation osmRelation;
+      p += OsmRelation.ReadBinary(buf, p, out osmRelation);
+      ulong tmp;
+      p += ProtoBuf.ReadVarInt(buf, p, out tmp);
+      osmWays = new OsmWay[tmp];
+      for (int i = 0; i < osmWays.Length; i++)
+      {
+        p += OsmWay.ReadBinary(buf, p, out osmWays[i]);
+      }
+      DecodeDelta(osmWays);
+      p += ProtoBuf.ReadVarInt(buf, p, out tmp);
+      osmNodes = new OsmNode[tmp];
+      for (int i = 0; i < osmNodes.Length; i++)
+      {
+        p += OsmNode.ReadBinary(buf, p, out osmNodes[i]);
+      }
+      DecodeDelta(osmNodes);
+      if (p != size + sizeof(int)) throw new PbfParseException();
+
+      return osmRelation;
+    }
 
     long WriteRelationCache(OsmRelation osmRelation, OsmWay[] osmWays, OsmNode[] osmNodes)
     {
@@ -196,7 +219,7 @@ namespace TestTool
       long relationIndex = GetRelationIndex(relationID);
       if (relationIndex > 0) // cache found?
       {
-        osmRelation = GetRelationData(relationIndex, out osmWays, out osmNodes);
+        osmRelation = ReadRelationCache(relationIndex, out osmWays, out osmNodes);
         return true;
       }
 
@@ -232,6 +255,51 @@ namespace TestTool
       Array.Resize(ref osmWays, wayCount);
 
       osmNodes = pbfReader.ReadNodes(osmWays.SelectMany(x => x.nodeIds).Concat(osmRelation.members.Where(x => x.type == MemberType.Node).Select(x => x.id)).ToArray());
+      Array.Sort(osmNodes, (x, y) => x.id.CompareTo(y.id));
+      int nodeCount = 1;
+      for (int i = 1; i < osmNodes.Length; i++)
+      {
+        if (osmNodes[i - 1].id == osmNodes[i].id) continue;
+        osmNodes[nodeCount++] = osmNodes[i];
+      }
+      Array.Resize(ref osmNodes, nodeCount);
+
+      return true;
+    }
+    #endregion
+
+    public bool ReadWay(long wayID, out OsmWay osmWay, out OsmNode[] osmNodes)
+    {
+      long wayIndex = GetWayIndex(wayID);
+      if (wayIndex > 0) // cache found?
+      {
+        //  osmRelation = ReadRelationCache(relationIndex, out osmWays, out osmNodes);
+        osmWay = new OsmWay();
+        osmNodes = null;
+        return true;
+      }
+
+      ReadWayDirect(wayID, out osmWay, out osmNodes);
+
+      //relationIndex = WriteRelationCache(osmRelation, osmWays, osmNodes);
+      //WriteIndex(MemberType.Relation, relationID, relationIndex);
+
+      //return osmRelation.id != 0;
+    }
+
+    public bool ReadWayDirect(long wayID, out OsmWay osmWay, out OsmNode[] osmNodes)
+    {
+      var ways = pbfReader.ReadWays(wayID);
+      if (ways.Length == 0)
+      {
+        osmWay = default(OsmWay);
+        osmNodes = new OsmNode[0];
+        return false;
+      }
+
+      osmWay = ways.First();
+
+      osmNodes = pbfReader.ReadNodes(osmWay.nodeIds);
       Array.Sort(osmNodes, (x, y) => x.id.CompareTo(y.id));
       int nodeCount = 1;
       for (int i = 1; i < osmNodes.Length; i++)

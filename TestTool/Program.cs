@@ -269,7 +269,7 @@ namespace TestTool
       }
     }
 
-    static void CacheTest()
+    static void CacheTestRelations()
     {
       long[] relIds =
       {
@@ -278,6 +278,7 @@ namespace TestTool
         62422L,   // Berlin
         62504L,   // Brandenburg
         51477L,   // Deutschland
+        62781L,   // Deutschland (Landmasse)
         3920249L, // Portuagl - Aveiro
         3459013L  // Portugal - Porto
       };
@@ -324,9 +325,36 @@ namespace TestTool
       }
     }
 
+    static void CacheTestWays()
+    {
+      long[] wayIds =
+      {
+        24187060L,  // Bergstraße
+        55509955L,  // Am Sportplatz
+        631375383L, // Hechtgraben
+        4783377L,   // Malchower See
+        382344385L, // Teil Nord-Rügen
+      };
+
+      using (var pbf = new OsmPbfReader(PbfPath))
+      using (var cache = new OsmCache(pbf))
+      {
+        foreach (long wayId in wayIds)
+        {
+          OsmWay way;
+          OsmNode[] nodes;
+          if (!cache.ReadWayDirect(wayId, out way, out nodes))
+          {
+            throw new Exception("way not found: " + wayId);
+          }
+        }
+      }
+    }
+
     static void Main(string[] args)
     {
-      CacheTest();
+      //CacheTestRelations();
+      CacheTestWays();
       //BufferTest(); return;
       //HgtTest(); return;
       //ParseTest(); return;
